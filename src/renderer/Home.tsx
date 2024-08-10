@@ -3,6 +3,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Transcribe from './Transcribe';
+import GuiShowcase from './GuiShowcase';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -43,17 +44,17 @@ export default function ItDoesntMatter() {
         >
           <Tab label="Transcribe" id="tab-0" aria-controls="pnl-0" />
           <Tab label="Chat" id="tab-1" aria-controls="pnl-1" />
-          <Tab label="Item Three" id="tab-2" aria-controls="pnl-2" />
+          <Tab label="Gui Showcase" id="tab-2" aria-controls="pnl-2" />
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
-        <Transcribe></Transcribe>
+        <Transcribe />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
-        Item 2
+        Chat: not implemented
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
-        Item 3
+        <GuiShowcase />
       </CustomTabPanel>
     </Box>
   );
