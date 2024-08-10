@@ -17,20 +17,13 @@ function CustomTabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
+      id={`pnl-${index}`}
+      aria-labelledby={`tab-${index}`}
       {...other}
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
-  };
 }
 
 export default function ItDoesntMatter() {
@@ -48,9 +41,9 @@ export default function ItDoesntMatter() {
           onChange={handleChange}
           aria-label="basic tabs example"
         >
-          <Tab label="Transcribe" {...a11yProps(0)} />
-          <Tab label="Chat" {...a11yProps(1)} />
-          <Tab label="Item Three" {...a11yProps(2)} />
+          <Tab label="Transcribe" id="tab-0" aria-controls="pnl-0" />
+          <Tab label="Chat" id="tab-1" aria-controls="pnl-1" />
+          <Tab label="Item Three" id="tab-2" aria-controls="pnl-2" />
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
