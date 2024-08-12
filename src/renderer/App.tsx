@@ -1,5 +1,4 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
-// import './App.css';
 
 import * as React from 'react';
 import AppBar from '@mui/material/AppBar';
@@ -12,6 +11,13 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Home from './Home';
+
+window.electron.ipcRenderer
+  .sendMessage('ipc-example', ['ping'])
+  .then((arg) => {
+    return console.log(arg);
+  })
+  .catch((error) => console.log(error));
 
 function Hello() {
   return (
@@ -34,7 +40,7 @@ function Hello() {
           </Toolbar>
         </AppBar>
       </Box>
-      <Home></Home>
+      <Home />
     </>
   );
 }

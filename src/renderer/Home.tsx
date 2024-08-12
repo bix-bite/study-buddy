@@ -4,6 +4,7 @@ import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Transcribe from './Transcribe';
 import GuiShowcase from './GuiShowcase';
+import Chat from './Chat';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -12,7 +13,7 @@ interface TabPanelProps {
 }
 
 function CustomTabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
+  const { children, value, index } = props;
 
   return (
     <div
@@ -20,7 +21,6 @@ function CustomTabPanel(props: TabPanelProps) {
       hidden={value !== index}
       id={`pnl-${index}`}
       aria-labelledby={`tab-${index}`}
-      {...other}
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
@@ -51,7 +51,7 @@ export default function ItDoesntMatter() {
         <Transcribe />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
-        Chat: not implemented
+        <Chat />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
         <GuiShowcase />

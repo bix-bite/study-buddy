@@ -12,8 +12,9 @@ import path from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
-import MenuBuilder from './menu';
+import { IpcMainInvokeEvent } from 'electron/main';
 import { resolveHtmlPath } from './util';
+import SimpleElectronStore from './backend/SimpleElectronStore';
 
 class AppUpdater {
   constructor() {
@@ -25,11 +26,31 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
-});
+const dataStore = new SimpleElectronStore();
+ipcMain.handle(
+  'store-get',
+  (event: IpcMainInvokeEvent, store: string, key: string) =>
+    dataStore.get(store, key),
+);
+ipcMain.handle(
+  'store-delete',
+  (event: IpcMainInvokeEvent, store: string, key: string) =>
+    dataStore.delete(store, key),
+);
+ipcMain.handle(
+  'store-set',
+  (event: IpcMainInvokeEvent, store: string, key: string, value: any) =>
+    dataStore.set(store, key, value),
+);
+
+ipcMain.handle(
+  'ipc-example',
+  async (event: IpcMainInvokeEvent, arg: string[]) => {
+    const msgTemplate = (pingPong: string) =>
+      `IPC test reply from ${arg.join(',')}: ${pingPong}`;
+    return msgTemplate('pong');
+  },
+);
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -97,9 +118,6 @@ const createWindow = async () => {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
-  const menuBuilder = new MenuBuilder(mainWindow);
-  menuBuilder.buildMenu();
 
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {

@@ -1,0 +1,9 @@
+.chatSection {
+  width: 100%;
+  height: 80vh;
+}
+
+.messageArea {
+  height: 70vh;
+  overflow-y: auto;
+}
