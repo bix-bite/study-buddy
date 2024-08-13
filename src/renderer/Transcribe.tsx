@@ -8,6 +8,9 @@ export default function Component() {
   const [msg, setMessage] = React.useState<string>('');
   const [transcription, setTranscription] = React.useState<string>('');
 
+  let mediaRecorder: MediaRecorder;
+  let audioChunks: Blob[] = [];
+
   const changeState = (newState: states) => {
     transition(newState);
   };
@@ -16,11 +19,33 @@ export default function Component() {
     try {
       if (newState == 'Start') {
         setMessage('starting recording...');
-        // await window.electron.ipcRenderer.recordDesktopAudio();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const res = reader.result as ArrayBuffer;
+            const buffer = Buffer.from(res);
+            const fileName = await window.electron.ipcRenderer.saveAudio(buffer);
+          };
+          reader.readAsArrayBuffer(audioBlob);
+
+          audioChunks = []; // Clear the chunks for the next recording
+        };
+
+        mediaRecorder.start();
+
         setMessage('RECORDING AUDIO');
       } else if (newState == 'Stop') {
         setMessage('stopping recording...');
-        // await window.electron.ipcRenderer.stopRecording();
+        mediaRecorder.stop();
+
         setMessage('transcribing');
         // const result = await window.electron.ipcRenderer.transcribe();
         setTranscription(' No Transcription content');

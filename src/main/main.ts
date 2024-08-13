@@ -9,7 +9,9 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import fs from 'fs';
+
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import { IpcMainInvokeEvent } from 'electron/main';
@@ -51,6 +53,28 @@ ipcMain.handle(
     return msgTemplate('pong');
   },
 );
+
+// Handle the save-audio event
+ipcMain.handle('save-audio', async (event, buffer): Promise<string> => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    filters: [
+      { name: 'Audio Files', extensions: ['wav'] },
+    ],
+    defaultPath: 'recording.wav',
+  });
+
+  if (!canceled && filePath) {
+    fs.writeFile(filePath, buffer, (err) => {
+      if (err) {
+        console.error('Failed to save the file:', err);
+        return;
+      }
+      console.log('Audio file saved successfully:', filePath);
+      return filePath;
+    });
+  }
+  return '';
+});
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
