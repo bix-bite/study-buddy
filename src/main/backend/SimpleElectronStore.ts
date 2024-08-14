@@ -69,7 +69,7 @@ class SimpleElectronStore {
 
   // Save the current state to disk
   private static save(fi: IFileInfo): void {
-    fs.writeFileSync(fi.filePath, JSON.stringify(fi.data));
+    fs.writeFileSync(fi.filePath, JSON.stringify(fi.data, null, 2));
     fi.statusList.push('Saved');
     console.log(`${fi.filePath} [${fi.statusList.join('=>')}]`);
   }

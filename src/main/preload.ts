@@ -6,8 +6,8 @@ export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
-    saveAudio: (buffer: Buffer) =>
-      ipcRenderer.invoke('save-audio', buffer),
+    saveAudio: (arrayBuffer: ArrayBuffer) =>
+      ipcRenderer.invoke('save-audio', arrayBuffer),
     StoreGet: (store: string, key: string) =>
       ipcRenderer.invoke('store-get', store, key),
     StoreSet: (store: string, key: string, value: any) =>

@@ -2,8 +2,6 @@ import * as React from 'react';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import List from '@mui/material/List';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
 
 import ChatLeft from './ChatLeft';
 import ChatRight from './ChatRight';
@@ -15,26 +13,6 @@ export default function Chat() {
     openAiKey: '',
     anthropicKey: '',
   });
-
-  const handleChange = (event) => {
-    const { name } = event.target;
-    const { value } = event.target;
-    setApiKeys((values) => ({ ...values, [name]: value }));
-  };
-
-  const saveKeys = (event) => {
-    window.electron.ipcRenderer.StoreSet(
-      'StudyBuddy.AI',
-      'openAiKey',
-      apiKeys.openAiKey,
-    );
-    window.electron.ipcRenderer.StoreSet(
-      'StudyBuddy.AI',
-      'anthropicKey',
-      apiKeys.anthropicKey,
-    );
-    event.preventDefault();
-  };
 
   const longMessage1 =
     'Hey, Iam Good! What about you ? Hey, Iam Good! What about you ? Hey, Iam Good! What about you ? Hey, Iam Good! What about you ? Hey, Iam Good! What about you ?';
@@ -53,27 +31,10 @@ export default function Chat() {
     };
     getKeys();
   }, []);
+
   return (
     <Grid container component={Paper} className={styles.chatSection}>
-      <Grid item xs={12}>
-        <TextField
-          name="openAiKey"
-          value={apiKeys.openAiKey || ''}
-          onChange={handleChange}
-          label="Open AI API key:"
-          variant="standard"
-        />
-        <TextField
-          name="anthropicKey"
-          value={apiKeys.anthropicKey || ''}
-          onChange={handleChange}
-          label="Anthropic API key:"
-          variant="standard"
-        />
-        <Button onClick={saveKeys} variant="outlined">
-          submit
-        </Button>
-      </Grid>
+
       <Grid item xs={12}>
         <List className={styles.messageArea}>
           <ChatRight message="Hey man, What's up ?" otherText="09:30" />
