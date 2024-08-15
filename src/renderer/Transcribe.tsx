@@ -23,7 +23,8 @@ import {
   Alert,
 } from '@mui/material';
 
-import MarkdownPreview from '@uiw/react-markdown-preview';
+// import MarkdownPreview from '@uiw/react-markdown-preview';
+import Markdown from 'react-markdown';
 import { ArrowCircleUpTwoTone } from '@mui/icons-material';
 import Shared from '../shared';
 
@@ -650,10 +651,7 @@ export default function Component() {
                 overflow: 'auto',
               }}
             >
-              <MarkdownPreview
-                source={editText?.text}
-                style={{ padding: 16 }}
-              />
+              <Markdown>{editText?.text}</Markdown>
             </Box>
           )}
           <DialogActions>
