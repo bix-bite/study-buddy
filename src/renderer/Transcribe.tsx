@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 /* eslint-disable react-hooks/exhaustive-deps */
 import * as React from 'react';
 import Stack from '@mui/material/Stack';
@@ -19,12 +20,14 @@ import {
   DialogContent,
   DialogActions,
   Input,
+  TextareaAutosize as BaseTextareaAutosize,
+  styled,
 } from '@mui/material';
 import Shared from '../shared';
 
 type states = 'Start' | 'Stop' | 'Clear';
 
-interface ITranscribeInstance {
+interface IInstance {
   id: string;
   file: string;
   note: string;
@@ -32,7 +35,74 @@ interface ITranscribeInstance {
   AISummary: string;
 }
 
+const blue = {
+  100: '#DAECFF',
+  200: '#b6daff',
+  400: '#3399FF',
+  500: '#007FFF',
+  600: '#0072E5',
+  900: '#003A75',
+};
+
+const grey = {
+  50: '#F3F6F9',
+  100: '#E5EAF2',
+  200: '#DAE2ED',
+  300: '#C7D0DD',
+  400: '#B0B8C4',
+  500: '#9DA8B7',
+  600: '#6B7A90',
+  700: '#434D5B',
+  800: '#303740',
+  900: '#1C2025',
+};
+
+const TextareaAutosize = styled(BaseTextareaAutosize)(
+  ({ theme }) => `
+  box-sizing: border-box;
+  width: 90%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: ${theme.palette.mode === 'dark' ? grey[300] : grey[900]};
+  background: ${theme.palette.mode === 'dark' ? grey[900] : '#fff'};
+  border: 1px solid ${theme.palette.mode === 'dark' ? grey[700] : grey[200]};
+  box-shadow: 0px 2px 2px ${theme.palette.mode === 'dark' ? grey[900] : grey[50]};
+
+  &:hover {
+    border-color: ${blue[400]};
+  }
+
+  &:focus {
+    border-color: ${blue[400]};
+    box-shadow: 0 0 0 3px ${theme.palette.mode === 'dark' ? blue[600] : blue[200]};
+  }
+
+  // firefox
+  &:focus-visible {
+    outline: 0;
+  }
+`,
+);
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  '&:nth-of-type(odd)': {
+    backgroundColor: theme.palette.action.hover,
+  },
+  // hide last border
+  '&:last-child td, &:last-child th': {
+    border: 0,
+  },
+}));
+
 export default function Component() {
+  const [instanceList, setInstanceList] = React.useState<IInstance[]>([]);
+  const [sortedList, setSortedList] = React.useState<IInstance[]>([]);
+  const [visibleList, setVisibleList] = React.useState<IInstance[]>([]);
+
   const [updateFlag, setUpdateFlag] = React.useState(0);
 
   const [state, setState] = React.useState<states>('Clear');
@@ -46,30 +116,32 @@ export default function Component() {
     undefined,
   );
 
-  const [transcribeInstanceList, setTranscribeInstanceList] = React.useState<
-    ITranscribeInstance[]
-  >([]);
-
   const [openAiKey, setOpenAiKey] = React.useState('');
-  const [pageCount, setPageCount] = React.useState(0);
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  const [visibleList, setVisibleList] = React.useState<ITranscribeInstance[]>(
-    [],
-  );
+  const [rowsPerPage, setRowsPerPage] = React.useState(8);
 
   const [requestTranscription, setRequestTranscription] = React.useState<
-    ITranscribeInstance | undefined
+    IInstance | undefined
   >(undefined);
 
-  const [editingItem, setEditingItem] = React.useState<
-    ITranscribeInstance | undefined
+  const [editingItem, setEditingItem] = React.useState<IInstance | undefined>(
+    undefined,
+  );
+
+  const [editText, setEditText] = React.useState<
+    { property: string; text: string } | undefined
   >(undefined);
 
-  const [editText, setEditText] = React.useState<string>('');
-
-  const [openNotesDialog, setOpenNotesDialog] = React.useState(false);
-
+  const maybeShorten = (
+    text: string | undefined,
+    max: number,
+  ): string | undefined => {
+    return text === undefined
+      ? undefined
+      : text.length > max
+        ? `${text.substring(0, max - 3)}...`
+        : text;
+  };
   // initial event
   React.useEffect(() => {
     const getList = async () => {
@@ -82,11 +154,25 @@ export default function Component() {
         'StudyBuddy.Transcriptions.AI',
         'TranscribeList',
       );
-      setTranscribeInstanceList(retrieve || []);
+      setInstanceList(retrieve || []);
     };
     getList();
   }, []);
 
+  // sort list
+  React.useEffect(() => {
+    setSortedList(instanceList.sort((a, b) => b.id.localeCompare(a.id)));
+  }, [instanceList]);
+
+  // update visible list of records based on current page of table
+  React.useEffect(() => {
+    const start = page * rowsPerPage;
+    const end = (page + 1) * rowsPerPage;
+    const last = end > sortedList.length ? sortedList.length : end;
+    setVisibleList(sortedList.slice(start, last));
+  }, [sortedList, page, rowsPerPage]);
+
+  // transcribe on request
   React.useEffect(() => {
     const transcribe = async () => {
       if (requestTranscription) {
@@ -95,12 +181,12 @@ export default function Component() {
           openAiKey,
         );
 
-        const toUpdate = transcribeInstanceList.find(
+        const toUpdate = instanceList.find(
           (x) => x.id === requestTranscription.id,
         );
         if (toUpdate) {
           toUpdate.transcription = transcriptionText;
-          setTranscribeInstanceList([...transcribeInstanceList]);
+          setInstanceList([...instanceList]);
           setUpdateFlag(updateFlag + 1);
         }
       }
@@ -110,21 +196,6 @@ export default function Component() {
       transcribe();
     }
   }, [requestTranscription]);
-
-  React.useEffect(() => {
-    const count = Math.floor(transcribeInstanceList.length / rowsPerPage) + 1;
-    setPageCount(count);
-    const start = page * rowsPerPage;
-    const end = (page + 1) * rowsPerPage;
-    setVisibleList(
-      transcribeInstanceList.slice(
-        start,
-        end > transcribeInstanceList.length
-          ? transcribeInstanceList.length
-          : end,
-      ),
-    );
-  }, [transcribeInstanceList, page, rowsPerPage]);
 
   // user state request change
   React.useEffect(() => {
@@ -160,7 +231,7 @@ export default function Component() {
 
       mediaRecorder.onstop = () => {
         if (state === 'Clear') {
-          setMessage('cleared');
+          setMessage('cleared: recording not saved.');
         } else {
           setMessage('recording stopped: saving file...');
           const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg-3' });
@@ -185,8 +256,8 @@ export default function Component() {
         arrayBuffer as ArrayBuffer,
       );
 
-      setTranscribeInstanceList([
-        ...transcribeInstanceList,
+      setInstanceList([
+        ...instanceList,
         {
           id: Shared.formattedNow(),
           file: fileName,
@@ -197,7 +268,7 @@ export default function Component() {
       ]);
       setUpdateFlag(updateFlag + 1);
       setMessage(
-        `saved recording.  Ready to start recording again.  Click "Transcribe" on new recording to transcribe`,
+        `Saved recording.  Start recording again or click "Transcribe" on new recording to transcribe to text`,
       );
       setArrayBuffer(undefined);
     };
@@ -207,35 +278,32 @@ export default function Component() {
     }
   }, [arrayBuffer]);
 
+  // save instance list to file
   React.useEffect(() => {
     if (updateFlag > 0) {
       window.electron.ipcRenderer.StoreSet(
         'StudyBuddy.Transcriptions.AI',
         'TranscribeList',
-        transcribeInstanceList,
+        instanceList,
       );
     }
   }, [updateFlag]);
 
-  const handleClickOpenNoteDialog = (item: ITranscribeInstance) => {
+  const editProperty = (item: IInstance, prop: string) => {
     setEditingItem(item);
-    setEditText(item.note);
-    setOpenNotesDialog(true);
+    setEditText({ property: prop, text: (item as any)[prop] });
   };
 
-  const handleCloseNoteDialog = (update: boolean) => {
-    setOpenNotesDialog(false);
-    if (!update || editingItem === undefined) {
-      return;
+  const endEditProperty = (update: boolean) => {
+    if (update && editingItem !== undefined && editText !== undefined) {
+      const toUpdate = instanceList.find((x) => x.id === editingItem.id);
+      if (toUpdate) {
+        (toUpdate as any)[editText.property] = editText.text;
+        setInstanceList([...instanceList]);
+        setUpdateFlag(updateFlag + 1);
+      }
     }
-    const toUpdate = transcribeInstanceList.find(
-      (x) => x.id === editingItem.id,
-    );
-    if (toUpdate) {
-      toUpdate.note = editText;
-      setTranscribeInstanceList([...transcribeInstanceList]);
-      setUpdateFlag(updateFlag + 1);
-    }
+    setEditText(undefined);
   };
 
   return (
@@ -251,30 +319,34 @@ export default function Component() {
         >
           Stop Recording
         </Button>
-        <Button onClick={() => setState('Clear')} variant="text">
+        <Button
+          disabled={!mediaRecorder}
+          onClick={() => setState('Clear')}
+          variant="text"
+        >
           Clear
         </Button>
       </Stack>
-      <h2>{msg}</h2>
+      <h4>{msg}</h4>
       <hr />
       <Grid container>
-        <Grid item xs={8}>
+        <Grid item xs={12}>
           <Box sx={{ width: '100%' }}>
             <Paper sx={{ width: '100%', mb: 2 }}>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
+                    <StyledTableRow>
                       <TableCell>File</TableCell>
                       <TableCell colSpan={2}>Note</TableCell>
-                      <TableCell>Transcription</TableCell>
-                      <TableCell>AI Summary</TableCell>
-                    </TableRow>
+                      <TableCell colSpan={2}>Transcription</TableCell>
+                      <TableCell colSpan={2}>AI Summary</TableCell>
+                    </StyledTableRow>
                   </TableHead>
                   <TableBody>
-                    {visibleList.map((row, index) => {
+                    {visibleList.map((row) => {
                       return (
-                        <TableRow
+                        <StyledTableRow
                           hover
                           // onClick={(event) => handleClick(event, row.id)}
                           role="checkbox"
@@ -284,38 +356,38 @@ export default function Component() {
                           // selected={isItemSelected}
                           sx={{ cursor: 'pointer' }}
                         >
-                          <TableCell align="right">
+                          <TableCell>
                             {
                               row.file.split('\\')[
                                 row.file.split('\\').length - 1
                               ]
                             }
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell>
                             <Typography
                               variant="caption"
                               display="block"
                               gutterBottom
                             >
-                              {row.note || 'no note'}
+                              {maybeShorten(row.note, 40) || 'no note'}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Button
-                              onClick={(e) => handleClickOpenNoteDialog(row)}
+                              onClick={(e) => editProperty(row, 'note')}
                               variant="outlined"
                               size="small"
                             >
                               edit
                             </Button>
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell>
                             <Typography
                               variant="caption"
                               display="block"
                               gutterBottom
                             >
-                              {row.transcription || (
+                              {maybeShorten(row.transcription, 40) || (
                                 <Button
                                   onClick={(e) => setRequestTranscription(row)}
                                   variant="outlined"
@@ -325,19 +397,39 @@ export default function Component() {
                               )}
                             </Typography>
                           </TableCell>
-                          <TableCell align="right">
-                            {row.AISummary || 'no summary'}
+                          <TableCell>
+                            <Button
+                              onClick={(e) =>
+                                editProperty(row, 'transcription')
+                              }
+                              variant="outlined"
+                              size="small"
+                            >
+                              edit
+                            </Button>
                           </TableCell>
-                        </TableRow>
+                          <TableCell>
+                            {maybeShorten(row.AISummary, 40) || 'no summary'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              onClick={(e) => editProperty(row, 'AISummary')}
+                              variant="outlined"
+                              size="small"
+                            >
+                              edit
+                            </Button>
+                          </TableCell>
+                        </StyledTableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </TableContainer>
               <TablePagination
-                rowsPerPageOptions={[3, 5, 10, 25]}
+                rowsPerPageOptions={[3, 5, 8, 25]}
                 component="div"
-                count={transcribeInstanceList.length}
+                count={instanceList.length}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={(e, p) => setPage(p)}
@@ -348,34 +440,24 @@ export default function Component() {
             </Paper>
           </Box>
         </Grid>
-        <Grid item xs={4} />
       </Grid>
-      <Dialog
-        open={openNotesDialog}
-        onClose={handleCloseNoteDialog}
-        PaperProps={{
-          component: 'form',
-          onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-            const { email } = formJson;
-            console.log(email);
-            handleCloseNoteDialog();
-          },
-        }}
-      >
+      <Dialog fullWidth open={editText !== undefined}>
         <DialogTitle>Notes</DialogTitle>
         <DialogContent>
-          <Input
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
-            multiline
+          <TextareaAutosize
+            value={editText?.text}
+            maxRows={20}
+            onChange={(e) =>
+              setEditText({
+                property: editText?.property || '',
+                text: e.target.value,
+              })
+            }
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={(e) => handleCloseNoteDialog(false)}>Cancel</Button>
-          <Button onClick={(e) => handleCloseNoteDialog(true)}>Save</Button>
+          <Button onClick={() => endEditProperty(false)}>Cancel</Button>
+          <Button onClick={() => endEditProperty(true)}>Save</Button>
         </DialogActions>
       </Dialog>
     </>
