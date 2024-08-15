@@ -1,7 +1,7 @@
 ## Source: React Electron Boilerplate Repository
 
 ```bash
-git clone --depth 1 --branch main https://github.com/electron-react-boilerplate/electron-react-boilerplate.git your-project-name
+git clone --depth 1 --branch main https://github.com/npm/electron-react-boilerplate.git your-project-name
 cd your-project-name
 npm install
 ```

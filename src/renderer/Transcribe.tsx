@@ -22,9 +22,10 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import Shared from '../shared';
+
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { ArrowCircleUpTwoTone } from '@mui/icons-material';
+import Shared from '../shared';
 
 type states = 'Start' | 'Stop' | 'Clear';
 
@@ -110,6 +111,8 @@ export default function Component() {
   const [updateFlag, setUpdateFlag] = React.useState(0);
 
   const [alertNoKey, setAlertNoKey] = React.useState(false);
+  const [addManual, setAddManual] = React.useState(false);
+
   const [alertCloudActivity, setAlertCloudActivity] = React.useState<
     string | undefined
   >(undefined);
@@ -183,6 +186,29 @@ export default function Component() {
   React.useEffect(() => {
     setSortedList(instanceList.sort((a, b) => b.id.localeCompare(a.id)));
   }, [instanceList]);
+
+  // add manual transcript text
+  React.useEffect(() => {
+    if (addManual) {
+      const manualItem: IInstance = {
+        id: `${Shared.formattedNow()}_manual`,
+        file: 'PASTED TRANSCRIPT',
+        transcription: 'paste here',
+        AIStudyGuide: '',
+        AISummary: '',
+        note: 'Manually imported transcript',
+      };
+
+      setInstanceList([...instanceList, manualItem]);
+      setMarkdown(false);
+      setEditingItem(manualItem);
+      setEditText({
+        property: 'transcription',
+        text: manualItem.transcription,
+      });
+      setAddManual(false);
+    }
+  }, [addManual]);
 
   // update visible list of records based on current page of table
   React.useEffect(() => {
@@ -358,6 +384,7 @@ export default function Component() {
           AISummary: '',
           note: '',
           transcription: '',
+          AIStudyGuide: '',
         },
       ]);
       setUpdateFlag(updateFlag + 1);
@@ -403,22 +430,34 @@ export default function Component() {
   return (
     <>
       <Stack spacing={2} direction="row">
-        <Button onClick={() => setState('Start')} variant="text">
+        <Button
+          disabled={mediaRecorder !== undefined}
+          onClick={() => setState('Start')}
+          variant="text"
+        >
           Start Recording
         </Button>
         <Button
-          disabled={!mediaRecorder}
+          disabled={mediaRecorder === undefined}
           onClick={() => setState('Stop')}
           variant="text"
         >
           Stop Recording
         </Button>
         <Button
-          disabled={!mediaRecorder}
+          disabled={mediaRecorder === undefined}
           onClick={() => setState('Clear')}
           variant="text"
         >
           Clear
+        </Button>
+
+        <Button
+          disabled={mediaRecorder !== undefined}
+          onClick={() => setAddManual(true)}
+          variant="text"
+        >
+          Add Manual Transcript
         </Button>
         {alertCloudActivity && <p>{alertCloudActivity}</p>}
       </Stack>
