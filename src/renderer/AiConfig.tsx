@@ -66,17 +66,13 @@ export default function AiConfig() {
   React.useEffect(() => {
     const saveKeys = async () => {
       const saverAlgo = async (name: string, value: any) =>
-        await window.electron.ipcRenderer.StoreSet(
-          'StudyBuddy.AI',
-          name,
-          value,
-        );
-      saverAlgo('openAiKey', openAiKey);
-      saverAlgo('anthropicKey', anthropicKey);
-      saverAlgo('openAiModelList', openAiModelList);
-      saverAlgo('anthropicModelList', anthropicModelList);
-      saverAlgo('openAiModel', openAiModel);
-      saverAlgo('anthropicModel', anthropicModel);
+        window.electron.ipcRenderer.StoreSet('StudyBuddy.AI', name, value);
+      await saverAlgo('openAiKey', openAiKey);
+      await saverAlgo('anthropicKey', anthropicKey);
+      await saverAlgo('openAiModelList', openAiModelList);
+      await saverAlgo('anthropicModelList', anthropicModelList);
+      await saverAlgo('openAiModel', openAiModel);
+      await saverAlgo('anthropicModel', anthropicModel);
     };
     if (updateFlag) {
       saveKeys();
@@ -102,7 +98,7 @@ export default function AiConfig() {
             name="openAiKey"
             label="Open AI API key:"
             value={openAiKey}
-            onChange={(e) => setOpenAiModel(e.target.value)}
+            onChange={(e) => setOpenAiKey(e.target.value)}
             variant="standard"
           />
           <Select
@@ -115,7 +111,9 @@ export default function AiConfig() {
             onChange={(e) => setOpenAiModel(e.target.value)}
           >
             {openAiModelList.map((m) => (
-              <MenuItem value={m}>{m}</MenuItem>
+              <MenuItem key={m} value={m}>
+                {m}
+              </MenuItem>
             ))}
           </Select>
           <TextField
@@ -137,7 +135,9 @@ export default function AiConfig() {
             onChange={(e) => setAnthropicModel(e.target.value)}
           >
             {anthropicModelList.map((m) => (
-              <MenuItem value={m}>{m}</MenuItem>
+              <MenuItem key={m} value={m}>
+                {m}
+              </MenuItem>
             ))}
           </Select>
         </Stack>

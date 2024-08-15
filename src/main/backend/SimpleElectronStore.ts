@@ -1,45 +1,35 @@
 import { app } from 'electron';
 import * as fs from 'fs';
+import Shared from '../../shared';
 
 interface IFileInfo {
   name: string;
   filePath: string;
   statusList: string[];
+  existsOnDisk: boolean;
   data: Record<string, any>;
 }
 
 class SimpleElectronStore {
   userDataPath: string;
 
+  sessionFilePath: string;
+
   files: IFileInfo[] = [];
 
   constructor() {
     this.userDataPath = app.getPath('userData'); // or path.resolve('.');
+    this.sessionFilePath = `${this.userDataPath}/${Shared.formattedNow()}.txt`;
   }
 
-  private lazyLoad(store: string): IFileInfo {
-    let matchingFi = this.files.find((fi) => fi.name === store);
-    let status = 'new';
-    if (matchingFi === undefined) {
-      let data: Record<string, any> = {};
-      const path = `${this.userDataPath}/${store}.json`;
-      try {
-        // Try to read the file and parse it as JSON
-        data = JSON.parse(fs.readFileSync(path, 'utf-8'));
-        status = 'open';
-      } catch (error) {
-        // If file read or parse fails, start with an empty object
-        data = {};
-      }
-      matchingFi = {
-        name: store,
-        filePath: path,
-        data: data as Record<string, any>,
-        statusList: [status],
-      };
-    }
+  public getFileInfo(store: string): { path: string; info: IFileInfo } {
+    const path = this.getPath(store);
+    const info = this.lazyLoad(store);
 
-    return matchingFi;
+    return {
+      path,
+      info,
+    };
   }
 
   get<T>(store: string, key: string): any {
@@ -55,6 +45,17 @@ class SimpleElectronStore {
     fi.statusList.push('set');
     fi.statusList.push(key);
     SimpleElectronStore.save(fi);
+
+    try {
+      fs.appendFileSync(this.sessionFilePath, `[store=${store}][key=${key}]`);
+      fs.appendFileSync(
+        this.sessionFilePath,
+        `[value=${JSON.stringify(value)}]`,
+      );
+    } catch (error) {
+      // If file read or parse fails, start with an empty object
+      console.warn('Could not append to session log file ', error);
+    }
   }
 
   delete(store: string, key: string): void {
@@ -69,7 +70,36 @@ class SimpleElectronStore {
   private static save(fi: IFileInfo): void {
     fs.writeFileSync(fi.filePath, JSON.stringify(fi.data, null, 2));
     fi.statusList.push('Saved');
-    console.log(`${fi.filePath} [${fi.statusList.join('=>')}]`);
+  }
+
+  private getPath(store: string): string {
+    return `${this.userDataPath}/${store}.json`;
+  }
+
+  private lazyLoad(store: string): IFileInfo {
+    let matchingFi = this.files.find((fi) => fi.name === store);
+    let status = 'new';
+    if (matchingFi === undefined) {
+      let data: Record<string, any> = {};
+      const path = this.getPath(store);
+      try {
+        // Try to read the file and parse it as JSON
+        data = JSON.parse(fs.readFileSync(path, 'utf-8'));
+        status = 'open';
+      } catch (error) {
+        // If file read or parse fails, start with an empty object
+        data = {};
+      }
+      matchingFi = {
+        name: store,
+        filePath: path,
+        existsOnDisk: status !== 'new',
+        data: data as Record<string, any>,
+        statusList: [status],
+      };
+    }
+
+    return matchingFi;
   }
 }
 

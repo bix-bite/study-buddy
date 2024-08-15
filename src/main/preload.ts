@@ -8,8 +8,14 @@ const electronHandler = {
   ipcRenderer: {
     transcribe: (file: string, openAiKey: string) =>
       ipcRenderer.invoke('transcribe', file, openAiKey),
+    transcriptionSummry: (transcription: string, openAiKey: string) =>
+      ipcRenderer.invoke('transcriptionSummry', transcription, openAiKey),
+    transcriptionStudyGuide: (transcription: string, openAiKey: string) =>
+      ipcRenderer.invoke('transcriptionStudyGuide', transcription, openAiKey),
     saveAudio: (arrayBuffer: ArrayBuffer) =>
       ipcRenderer.invoke('save-audio', arrayBuffer),
+    StoreGetFileInfo: (store: string, key: string) =>
+      ipcRenderer.invoke('store-fileinfo', store, key),
     StoreGet: (store: string, key: string) =>
       ipcRenderer.invoke('store-get', store, key),
     StoreSet: (store: string, key: string, value: any) =>

@@ -15,15 +15,16 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  Input,
   TextareaAutosize as BaseTextareaAutosize,
   styled,
+  Modal,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import Shared from '../shared';
+import MarkdownPreview from '@uiw/react-markdown-preview';
+import { ArrowCircleUpTwoTone } from '@mui/icons-material';
 
 type states = 'Start' | 'Stop' | 'Clear';
 
@@ -33,6 +34,7 @@ interface IInstance {
   note: string;
   transcription: string;
   AISummary: string;
+  AIStudyGuide: string;
 }
 
 const blue = {
@@ -61,6 +63,8 @@ const TextareaAutosize = styled(BaseTextareaAutosize)(
   ({ theme }) => `
   box-sizing: border-box;
   width: 90%;
+  max-width: 95%;
+  max-height: 80%;
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.875rem;
   font-weight: 400;
@@ -105,6 +109,11 @@ export default function Component() {
 
   const [updateFlag, setUpdateFlag] = React.useState(0);
 
+  const [alertNoKey, setAlertNoKey] = React.useState(false);
+  const [alertCloudActivity, setAlertCloudActivity] = React.useState<
+    string | undefined
+  >(undefined);
+
   const [state, setState] = React.useState<states>('Clear');
   const [msg, setMessage] = React.useState<string>('');
 
@@ -116,11 +125,22 @@ export default function Component() {
     undefined,
   );
 
-  const [openAiKey, setOpenAiKey] = React.useState('');
+  const [markdown, setMarkdown] = React.useState(false);
+  const [openAiKey, setOpenAiKey] = React.useState<string | undefined>(
+    undefined,
+  );
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(8);
 
   const [requestTranscription, setRequestTranscription] = React.useState<
+    IInstance | undefined
+  >(undefined);
+
+  const [requestSummary, setRequestSummary] = React.useState<
+    IInstance | undefined
+  >(undefined);
+
+  const [requestStudyGuide, setRequestStudyGuide] = React.useState<
     IInstance | undefined
   >(undefined);
 
@@ -180,7 +200,6 @@ export default function Component() {
           requestTranscription?.file,
           openAiKey,
         );
-
         const toUpdate = instanceList.find(
           (x) => x.id === requestTranscription.id,
         );
@@ -193,9 +212,84 @@ export default function Component() {
     };
 
     if (requestTranscription !== undefined) {
-      transcribe();
+      if (openAiKey === undefined || openAiKey === '') {
+        setAlertNoKey(true);
+      } else {
+        setAlertCloudActivity(
+          'transcribing audio file remotely. Long audio files can take a while',
+        );
+        transcribe();
+      }
     }
   }, [requestTranscription]);
+
+  // summary on request
+  React.useEffect(() => {
+    const transcribe = async () => {
+      setAlertCloudActivity('sending request');
+      if (requestSummary) {
+        const summaryText =
+          await window.electron.ipcRenderer.transcriptionSummry(
+            requestSummary?.transcription,
+            openAiKey,
+          );
+        setAlertCloudActivity('applying response');
+        const toUpdate = instanceList.find((x) => x.id === requestSummary.id);
+        if (toUpdate) {
+          toUpdate.AISummary = summaryText;
+          setInstanceList([...instanceList]);
+          setUpdateFlag(updateFlag + 1);
+          setAlertCloudActivity(undefined);
+        } else {
+          setAlertCloudActivity(undefined);
+        }
+      }
+    };
+
+    if (requestSummary !== undefined) {
+      if (openAiKey === undefined || openAiKey === '') {
+        setAlertNoKey(true);
+      } else {
+        setAlertCloudActivity('Summarizing transcription.');
+        transcribe();
+      }
+    }
+  }, [requestSummary]);
+
+  // study guide on request
+  React.useEffect(() => {
+    const transcribe = async () => {
+      if (requestStudyGuide) {
+        setAlertCloudActivity('sending request');
+        const studyGuide =
+          await window.electron.ipcRenderer.transcriptionStudyGuide(
+            requestStudyGuide?.transcription,
+            openAiKey,
+          );
+        setAlertCloudActivity('applying response');
+        const toUpdate = instanceList.find(
+          (x) => x.id === requestStudyGuide.id,
+        );
+        if (toUpdate) {
+          toUpdate.AIStudyGuide = studyGuide;
+          setInstanceList([...instanceList]);
+          setUpdateFlag(updateFlag + 1);
+          setAlertCloudActivity(undefined);
+        } else {
+          setAlertCloudActivity(undefined);
+        }
+      }
+    };
+
+    if (requestStudyGuide !== undefined) {
+      if (openAiKey === undefined || openAiKey === '') {
+        setAlertNoKey(true);
+      } else {
+        setAlertCloudActivity('creating study guide.');
+        transcribe();
+      }
+    }
+  }, [requestStudyGuide]);
 
   // user state request change
   React.useEffect(() => {
@@ -326,6 +420,7 @@ export default function Component() {
         >
           Clear
         </Button>
+        {alertCloudActivity && <p>{alertCloudActivity}</p>}
       </Stack>
       <h4>{msg}</h4>
       <hr />
@@ -341,6 +436,7 @@ export default function Component() {
                       <TableCell colSpan={2}>Note</TableCell>
                       <TableCell colSpan={2}>Transcription</TableCell>
                       <TableCell colSpan={2}>AI Summary</TableCell>
+                      <TableCell colSpan={2}>Study Guide</TableCell>
                     </StyledTableRow>
                   </TableHead>
                   <TableBody>
@@ -399,25 +495,56 @@ export default function Component() {
                           </TableCell>
                           <TableCell>
                             <Button
-                              onClick={(e) =>
-                                editProperty(row, 'transcription')
-                              }
-                              variant="outlined"
+                              onClick={(e) => {
+                                setMarkdown(false);
+                                editProperty(row, 'transcription');
+                              }}
                               size="small"
                             >
-                              edit
+                              <ArrowCircleUpTwoTone />
                             </Button>
                           </TableCell>
                           <TableCell>
-                            {maybeShorten(row.AISummary, 40) || 'no summary'}
+                            {maybeShorten(row.AISummary, 40) || (
+                              <Button
+                                onClick={(e) => setRequestSummary(row)}
+                                variant="outlined"
+                              >
+                                Summarize
+                              </Button>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Button
-                              onClick={(e) => editProperty(row, 'AISummary')}
-                              variant="outlined"
+                              onClick={(e) => {
+                                setMarkdown(row.AISummary?.length > 0);
+                                editProperty(row, 'AISummary');
+                              }}
                               size="small"
                             >
-                              edit
+                              <ArrowCircleUpTwoTone />
+                            </Button>
+                          </TableCell>
+
+                          <TableCell>
+                            {maybeShorten(row.AIStudyGuide, 40) || (
+                              <Button
+                                onClick={(e) => setRequestStudyGuide(row)}
+                                variant="outlined"
+                              >
+                                Create
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              onClick={(e) => {
+                                setMarkdown(row.AIStudyGuide?.length > 0);
+                                editProperty(row, 'AIStudyGuide');
+                              }}
+                              size="small"
+                            >
+                              <ArrowCircleUpTwoTone />
                             </Button>
                           </TableCell>
                         </StyledTableRow>
@@ -441,25 +568,89 @@ export default function Component() {
           </Box>
         </Grid>
       </Grid>
-      <Dialog fullWidth open={editText !== undefined}>
-        <DialogTitle>Notes</DialogTitle>
-        <DialogContent>
-          <TextareaAutosize
-            value={editText?.text}
-            maxRows={20}
-            onChange={(e) =>
-              setEditText({
-                property: editText?.property || '',
-                text: e.target.value,
-              })
-            }
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => endEditProperty(false)}>Cancel</Button>
-          <Button onClick={() => endEditProperty(true)}>Save</Button>
-        </DialogActions>
-      </Dialog>
+      <Modal open={editText !== undefined}>
+        <Box
+          sx={{
+            position: 'relative',
+            top: '10vh',
+            height: '80vh',
+            left: '10vw',
+            width: '80vw',
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: (theme) => theme.shadows[5],
+            p: 4,
+          }}
+        >
+          <h4>
+            Edit {editText?.property}{' '}
+            <Button onClick={() => setMarkdown(!markdown)}>
+              Toggle Markdown
+            </Button>
+          </h4>
+
+          {!markdown && (
+            <TextareaAutosize
+              value={editText?.text}
+              minRows={10}
+              maxRows={30}
+              onChange={(e) =>
+                setEditText({
+                  property: editText?.property || '',
+                  text: e.target.value,
+                })
+              }
+            />
+          )}
+          {markdown && (
+            <Box
+              sx={{
+                width: '95%',
+                maxWidth: '95%',
+                maxHeight: '80%',
+                overflow: 'auto',
+              }}
+            >
+              <MarkdownPreview
+                source={editText?.text}
+                style={{ padding: 16 }}
+              />
+            </Box>
+          )}
+          <DialogActions>
+            {!markdown && (
+              <>
+                <Button onClick={() => endEditProperty(false)}>Cancel</Button>
+                <Button onClick={() => endEditProperty(true)}>Save</Button>
+              </>
+            )}
+
+            {markdown && (
+              <Button onClick={() => endEditProperty(false)}>Close</Button>
+            )}
+          </DialogActions>
+        </Box>
+      </Modal>
+      <Snackbar open={alertCloudActivity !== undefined} autoHideDuration={6000}>
+        <Alert severity="success" variant="filled" sx={{ width: '100%' }}>
+          {alertCloudActivity}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={alertNoKey}
+        autoHideDuration={6000}
+        onClose={() => setAlertNoKey(false)}
+      >
+        <Alert
+          onClose={() => setAlertNoKey(false)}
+          severity="warning"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          No API key for Open AI configured. GO to AI Configuration tab and add
+          a valid OpenAI API key first.
+        </Alert>
+      </Snackbar>
     </>
   );
 }

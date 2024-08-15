@@ -30,7 +30,6 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-
 const dataStore = new SimpleElectronStore();
 
 ipcMain.handle(
@@ -40,15 +39,43 @@ ipcMain.handle(
     file: string,
     openAiKey: string,
   ): Promise<string> => {
-    console.log(`ChatService invokation with key ${openAiKey}`);
+    console.log(`ChatService Transcribe with key ${openAiKey}`);
     const chatSvc = new ChatService(openAiKey, '');
     return chatSvc.Transcribe(file);
+  },
+);
+ipcMain.handle(
+  'transcriptionSummry',
+  async (
+    event: IpcMainInvokeEvent,
+    transcription: string,
+    openAiKey: string,
+  ): Promise<string> => {
+    console.log(`ChatService TranscriptionSummry with key ${openAiKey}`);
+    const chatSvc = new ChatService(openAiKey, '');
+    return chatSvc.TranscriptionSummry(transcription);
+  },
+);
+
+ipcMain.handle(
+  'transcriptionStudyGuide',
+  async (
+    event: IpcMainInvokeEvent,
+    transcription: string,
+    openAiKey: string,
+  ): Promise<string> => {
+    console.log(`ChatService TranscriptionSummry with key ${openAiKey}`);
+    const chatSvc = new ChatService(openAiKey, '');
+    return chatSvc.TranscriptionStudyGuide(transcription);
   },
 );
 ipcMain.handle(
   'store-get',
   (event: IpcMainInvokeEvent, store: string, key: string) =>
     dataStore.get(store, key),
+);
+ipcMain.handle('store-fileinfo', (event: IpcMainInvokeEvent, store: string) =>
+  dataStore.getFileInfo(store),
 );
 ipcMain.handle(
   'store-delete',
