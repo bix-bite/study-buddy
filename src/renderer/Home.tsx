@@ -45,14 +45,15 @@ export default function ItDoesntMatter() {
           aria-label="basic tabs example"
         >
           <Tab label="Transcribe" id="tab-0" aria-controls="pnl-0" />
-          <Tab label="Chat" id="tab-1" aria-controls="pnl-1" />
-          <Tab label="Gui Showcase" id="tab-2" aria-controls="pnl-2" />
+          {/* <Tab label="Chat" id="tab-1" aria-controls="pnl-1" /> */}
           <Tab label="AI Configuration" id="tab-2" aria-controls="pnl-2" />
+          <Tab label="Gui Showcase" id="tab-2" aria-controls="pnl-2" />
+
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
         {/* <Transcribe /> */}
-        <Transcribe2 />
+        <Transcribe />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
         <Chat />

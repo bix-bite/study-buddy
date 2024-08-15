@@ -6,6 +6,8 @@ export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
+    transcribe: (file: string, openAiKey: string) =>
+      ipcRenderer.invoke('transcribe', file, openAiKey),
     saveAudio: (arrayBuffer: ArrayBuffer) =>
       ipcRenderer.invoke('save-audio', arrayBuffer),
     StoreGet: (store: string, key: string) =>

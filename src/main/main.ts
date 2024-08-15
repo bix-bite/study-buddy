@@ -17,6 +17,8 @@ import log from 'electron-log';
 import { IpcMainInvokeEvent } from 'electron/main';
 import { resolveHtmlPath } from './util';
 import SimpleElectronStore from './backend/SimpleElectronStore';
+import ChatService from './backend/ChatService';
+import Shared from '../shared';
 
 class AppUpdater {
   constructor() {
@@ -28,17 +30,21 @@ class AppUpdater {
 
 let mainWindow: BrowserWindow | null = null;
 
-const formattedNow = () => {
-  const now = new Date();
 
-  const padStart = (value: number) => value.toString().padStart(2,0);
-
-  return `${now.getFullYear()}${padStart(now.getMonth())}${padStart(now.getDate())}_` +
-    `${padStart(now.getHours())}${padStart(now.getMinutes())}${padStart(now.getSeconds())}_` +
-    `${now.getMilliseconds()}`;
-
-}
 const dataStore = new SimpleElectronStore();
+
+ipcMain.handle(
+  'transcribe',
+  async (
+    event: IpcMainInvokeEvent,
+    file: string,
+    openAiKey: string,
+  ): Promise<string> => {
+    console.log(`ChatService invokation with key ${openAiKey}`);
+    const chatSvc = new ChatService(openAiKey, '');
+    return chatSvc.Transcribe(file);
+  },
+);
 ipcMain.handle(
   'store-get',
   (event: IpcMainInvokeEvent, store: string, key: string) =>
@@ -66,25 +72,24 @@ ipcMain.handle(
 
 // Handle the save-audio event
 ipcMain.handle('save-audio', async (event, arrayBuffer): Promise<string> => {
-
   const { canceled, filePath } = await dialog.showSaveDialog({
-    filters: [ { name: 'Audio Files', extensions: ['mp3'] } ],
-    defaultPath: `recording_${formattedNow()}.mp3`,
+    filters: [{ name: 'Audio Files', extensions: ['mp3'] }],
+    defaultPath: `recording_${Shared.formattedNow()}.mp3`,
   });
 
   if (!canceled && filePath) {
     return new Promise((resolve, reject) => {
-      const buffer = Buffer.from(arrayBuffer)
+      const buffer = Buffer.from(arrayBuffer);
       fs.writeFile(filePath, buffer, (err) => {
         if (err) {
-          reject(`Failed to save the file: ${err}`)
+          // eslint-disable-next-line prefer-promise-reject-errors
+          reject(`Failed to save the file: ${err}`);
         }
         resolve(filePath);
       });
     });
-  } else {
-    return '';
   }
+  return '';
 });
 
 if (process.env.NODE_ENV === 'production') {

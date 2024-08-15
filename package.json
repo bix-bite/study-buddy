@@ -95,12 +95,9 @@
     }
   },
   "dependencies": {
-    "@chengsokdara/use-whisper": "^0.2.0",
     "@electron/notarize": "^2.3.2",
     "@emotion/react": "^11.13.0",
     "@emotion/styled": "^11.13.0",
-    "@ffmpeg/core": "^0.12.6",
-    "@ffmpeg/ffmpeg": "^0.12.10",
     "@fontsource/roboto": "^5.0.14",
     "@langchain/anthropic": "^0.2.14",
     "@langchain/openai": "^0.2.6",
@@ -111,6 +108,7 @@
     "electron-store": "^10.0.0",
     "electron-updater": "^6.1.4",
     "langchain": "^0.2.15",
+    "openai": "^4.55.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0"

@@ -46,9 +46,7 @@ class SimpleElectronStore {
     const fi = this.lazyLoad(store);
     fi.statusList.push('get');
     fi.statusList.push(key);
-    console.log(`${fi.filePath} [${fi.statusList.join('=>')}]`);
     return fi.data[key] as T;
-
   }
 
   set(store: string, key: string, value: any): void {
