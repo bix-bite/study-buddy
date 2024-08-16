@@ -1,17 +1,27 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer } from 'electron';
+import { IChatServiceResponse } from './backend/ChatService';
 
 export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
-    transcribe: (file: string, openAiKey: string) =>
+    transcribe: (
+      file: string,
+      openAiKey: string,
+    ): Promise<IChatServiceResponse> =>
       ipcRenderer.invoke('transcribe', file, openAiKey),
-    transcriptionSummry: (transcription: string, openAiKey: string) =>
-      ipcRenderer.invoke('transcriptionSummry', transcription, openAiKey),
-    transcriptionStudyGuide: (transcription: string, openAiKey: string) =>
-      ipcRenderer.invoke('transcriptionStudyGuide', transcription, openAiKey),
+    transcriptSummry: (
+      transcript: string,
+      openAiKey: string,
+    ): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('transcriptSummry', transcript, openAiKey),
+    transcriptStudyGuide: (
+      transcript: string,
+      openAiKey: string,
+    ): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('transcriptStudyGuide', transcript, openAiKey),
     saveAudio: (arrayBuffer: ArrayBuffer) =>
       ipcRenderer.invoke('save-audio', arrayBuffer),
     StoreGetFileInfo: (store: string, key: string) =>

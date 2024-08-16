@@ -7,6 +7,7 @@ import ChatLeft from './ChatLeft';
 import ChatRight from './ChatRight';
 
 import styles from '../styles/chat.module.css';
+import Shared from '../shared';
 
 export default function Chat() {
   const [apiKeys, setApiKeys] = React.useState({
@@ -20,12 +21,12 @@ export default function Chat() {
   React.useEffect(() => {
     const getKeys = async () => {
       const openAiKey = await window.electron.ipcRenderer.StoreGet(
-        'StudyBuddy.AI',
-        'openAiKey',
+        Shared.keys.STORE,
+        Shared.keys.OPENAI_KEY,
       );
       const anthropicKey = await window.electron.ipcRenderer.StoreGet(
-        'StudyBuddy.AI',
-        'anthropicKey',
+        Shared.keys.STORE,
+        Shared.keys.ANTHROPIC_KEY,
       );
       setApiKeys({ openAiKey, anthropicKey });
     };

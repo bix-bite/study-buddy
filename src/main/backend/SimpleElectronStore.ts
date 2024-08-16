@@ -32,7 +32,7 @@ class SimpleElectronStore {
     };
   }
 
-  get<T>(store: string, key: string): any {
+  get<T>(store: string, key: string): T {
     const fi = this.lazyLoad(store);
     fi.statusList.push('get');
     fi.statusList.push(key);
@@ -46,12 +46,15 @@ class SimpleElectronStore {
     fi.statusList.push(key);
     SimpleElectronStore.save(fi);
 
+    this.sessionLog([
+      `[store=${store}][key=${key}]`,
+      `[value=${JSON.stringify(value)}]`,
+    ]);
+  }
+
+  sessionLog(messages: string[]) {
     try {
-      fs.appendFileSync(this.sessionFilePath, `[store=${store}][key=${key}]`);
-      fs.appendFileSync(
-        this.sessionFilePath,
-        `[value=${JSON.stringify(value)}]`,
-      );
+      messages.forEach((msg) => fs.appendFileSync(this.sessionFilePath, msg));
     } catch (error) {
       // If file read or parse fails, start with an empty object
       console.warn('Could not append to session log file ', error);

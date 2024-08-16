@@ -21,12 +21,14 @@ import {
   Modal,
   Snackbar,
   Alert,
+  LinearProgress,
 } from '@mui/material';
 
 // import MarkdownPreview from '@uiw/react-markdown-preview';
 import Markdown from 'react-markdown';
 import { ArrowCircleUpTwoTone } from '@mui/icons-material';
 import Shared from '../shared';
+import { IChatServiceResponse } from '../main/backend/ChatService';
 
 type states = 'Start' | 'Stop' | 'Clear';
 
@@ -34,7 +36,7 @@ interface IInstance {
   id: string;
   file: string;
   note: string;
-  transcription: string;
+  transcript: string;
   AISummary: string;
   AIStudyGuide: string;
 }
@@ -113,7 +115,9 @@ export default function Component() {
 
   const [alertNoKey, setAlertNoKey] = React.useState(false);
   const [addManual, setAddManual] = React.useState(false);
-
+  const [aiResponseError, setAiResponseError] = React.useState<
+    string | undefined
+  >(undefined);
   const [alertCloudActivity, setAlertCloudActivity] = React.useState<
     string | undefined
   >(undefined);
@@ -124,11 +128,17 @@ export default function Component() {
   const [mediaRecorder, setMediaRecorder] = React.useState<
     MediaRecorder | undefined
   >(undefined);
+  // accumulates blobs of audio data as media recorder is recording
   const [audioChunks, setAudioChunks] = React.useState<Blob[]>([]);
+
+  // what audio chunks are converted to after recording is finished
+  // this is the data that is sent to the backend and saved as an mp3 file,
+  // which can then be uploaded to whisper ai for transcription
   const [arrayBuffer, setArrayBuffer] = React.useState<ArrayBuffer | undefined>(
     undefined,
   );
 
+  // toggles if markdown or editable textbox is shown in popup view of a field
   const [markdown, setMarkdown] = React.useState(false);
   const [openAiKey, setOpenAiKey] = React.useState<string | undefined>(
     undefined,
@@ -136,7 +146,7 @@ export default function Component() {
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(8);
 
-  const [requestTranscription, setRequestTranscription] = React.useState<
+  const [requestTranscript, setRequestTranscript] = React.useState<
     IInstance | undefined
   >(undefined);
 
@@ -170,12 +180,12 @@ export default function Component() {
   React.useEffect(() => {
     const getList = async () => {
       const key = await window.electron.ipcRenderer.StoreGet(
-        'StudyBuddy.AI',
-        'openAiKey',
+        Shared.keys.STORE,
+        Shared.keys.OPENAI_KEY,
       );
       setOpenAiKey(key);
       const retrieve = await window.electron.ipcRenderer.StoreGet(
-        'StudyBuddy.Transcriptions.AI',
+        Shared.keys.TRANSCRIBE_STORE,
         'TranscribeList',
       );
       setInstanceList(retrieve || []);
@@ -194,7 +204,7 @@ export default function Component() {
       const manualItem: IInstance = {
         id: `${Shared.formattedNow()}_manual`,
         file: 'PASTED TRANSCRIPT',
-        transcription: 'paste here',
+        transcript: 'paste here',
         AIStudyGuide: '',
         AISummary: '',
         note: 'Manually imported transcript',
@@ -204,8 +214,8 @@ export default function Component() {
       setMarkdown(false);
       setEditingItem(manualItem);
       setEditText({
-        property: 'transcription',
-        text: manualItem.transcription,
+        property: 'transcript',
+        text: manualItem.transcript,
       });
       setAddManual(false);
     }
@@ -219,103 +229,72 @@ export default function Component() {
     setVisibleList(sortedList.slice(start, last));
   }, [sortedList, page, rowsPerPage]);
 
-  // transcribe on request
-  React.useEffect(() => {
-    const transcribe = async () => {
-      if (requestTranscription) {
-        const transcriptionText = await window.electron.ipcRenderer.transcribe(
-          requestTranscription?.file,
-          openAiKey,
-        );
-        const toUpdate = instanceList.find(
-          (x) => x.id === requestTranscription.id,
-        );
-        if (toUpdate) {
-          toUpdate.transcription = transcriptionText;
-          setInstanceList([...instanceList]);
-          setUpdateFlag(updateFlag + 1);
+  const genericAiTranscriptProcessCall = (
+    call: (p: string, openAiKey: string) => Promise<IChatServiceResponse>,
+    propToSend: string,
+    propToUpdate: string,
+    instance: IInstance | undefined,
+    cloudMessage: string,
+  ) => {
+    const asyncCall = async () => {
+      if (instance !== undefined) {
+        const response = await call((instance as any)[propToSend], openAiKey);
+
+        setAlertCloudActivity(undefined);
+        if (response.status === 'FAILURE') {
+          setAiResponseError(response.error);
+        } else {
+          const toUpdate = instanceList.find((x) => x.id === instance.id);
+          if (toUpdate) {
+            (toUpdate as any)[propToUpdate] = response.text;
+            setInstanceList([...instanceList]);
+            setUpdateFlag(updateFlag + 1);
+          }
         }
       }
     };
 
-    if (requestTranscription !== undefined) {
+    if (instance !== undefined) {
       if (openAiKey === undefined || openAiKey === '') {
         setAlertNoKey(true);
       } else {
-        setAlertCloudActivity(
-          'transcribing audio file remotely. Long audio files can take a while',
-        );
-        transcribe();
+        setAlertCloudActivity(cloudMessage);
+        asyncCall();
       }
     }
-  }, [requestTranscription]);
+  };
+
+  // transcribe on request
+  React.useEffect(() => {
+    genericAiTranscriptProcessCall(
+      window.electron.ipcRenderer.transcribe,
+      'file',
+      'transcript',
+      requestTranscript,
+      'transcribing audio file remotely. Long audio files can take a while',
+    );
+  }, [requestTranscript]);
 
   // summary on request
   React.useEffect(() => {
-    const transcribe = async () => {
-      setAlertCloudActivity('sending request');
-      if (requestSummary) {
-        const summaryText =
-          await window.electron.ipcRenderer.transcriptionSummry(
-            requestSummary?.transcription,
-            openAiKey,
-          );
-        setAlertCloudActivity('applying response');
-        const toUpdate = instanceList.find((x) => x.id === requestSummary.id);
-        if (toUpdate) {
-          toUpdate.AISummary = summaryText;
-          setInstanceList([...instanceList]);
-          setUpdateFlag(updateFlag + 1);
-          setAlertCloudActivity(undefined);
-        } else {
-          setAlertCloudActivity(undefined);
-        }
-      }
-    };
-
-    if (requestSummary !== undefined) {
-      if (openAiKey === undefined || openAiKey === '') {
-        setAlertNoKey(true);
-      } else {
-        setAlertCloudActivity('Summarizing transcription.');
-        transcribe();
-      }
-    }
+    genericAiTranscriptProcessCall(
+      window.electron.ipcRenderer.transcriptSummry,
+      'transcript',
+      'AISummary',
+      requestSummary,
+      'Summarizing transcript...',
+    );
   }, [requestSummary]);
 
   // study guide on request
   React.useEffect(() => {
-    const transcribe = async () => {
-      if (requestStudyGuide) {
-        setAlertCloudActivity('sending request');
-        const studyGuide =
-          await window.electron.ipcRenderer.transcriptionStudyGuide(
-            requestStudyGuide?.transcription,
-            openAiKey,
-          );
-        setAlertCloudActivity('applying response');
-        const toUpdate = instanceList.find(
-          (x) => x.id === requestStudyGuide.id,
-        );
-        if (toUpdate) {
-          toUpdate.AIStudyGuide = studyGuide;
-          setInstanceList([...instanceList]);
-          setUpdateFlag(updateFlag + 1);
-          setAlertCloudActivity(undefined);
-        } else {
-          setAlertCloudActivity(undefined);
-        }
-      }
-    };
-
-    if (requestStudyGuide !== undefined) {
-      if (openAiKey === undefined || openAiKey === '') {
-        setAlertNoKey(true);
-      } else {
-        setAlertCloudActivity('creating study guide.');
-        transcribe();
-      }
-    }
+    genericAiTranscriptProcessCall(
+      window.electron.ipcRenderer.transcriptStudyGuide,
+      'transcript',
+      'AIStudyGuide',
+      requestStudyGuide,
+      'Creating study guide...',
+    );
   }, [requestStudyGuide]);
 
   // user state request change
@@ -384,7 +363,7 @@ export default function Component() {
           file: fileName,
           AISummary: '',
           note: '',
-          transcription: '',
+          transcript: '',
           AIStudyGuide: '',
         },
       ]);
@@ -404,7 +383,7 @@ export default function Component() {
   React.useEffect(() => {
     if (updateFlag > 0) {
       window.electron.ipcRenderer.StoreSet(
-        'StudyBuddy.Transcriptions.AI',
+        Shared.keys.TRANSCRIBE_STORE,
         'TranscribeList',
         instanceList,
       );
@@ -474,7 +453,7 @@ export default function Component() {
                     <StyledTableRow>
                       <TableCell>File</TableCell>
                       <TableCell colSpan={2}>Note</TableCell>
-                      <TableCell colSpan={2}>Transcription</TableCell>
+                      <TableCell colSpan={2}>transcript</TableCell>
                       <TableCell colSpan={2}>AI Summary</TableCell>
                       <TableCell colSpan={2}>Study Guide</TableCell>
                     </StyledTableRow>
@@ -523,9 +502,9 @@ export default function Component() {
                               display="block"
                               gutterBottom
                             >
-                              {maybeShorten(row.transcription, 40) || (
+                              {maybeShorten(row.transcript, 40) || (
                                 <Button
-                                  onClick={(e) => setRequestTranscription(row)}
+                                  onClick={(e) => setRequestTranscript(row)}
                                   variant="outlined"
                                 >
                                   Transcribe
@@ -537,7 +516,7 @@ export default function Component() {
                             <Button
                               onClick={(e) => {
                                 setMarkdown(false);
-                                editProperty(row, 'transcription');
+                                editProperty(row, 'transcript');
                               }}
                               size="small"
                             >
@@ -668,9 +647,10 @@ export default function Component() {
           </DialogActions>
         </Box>
       </Modal>
-      <Snackbar open={alertCloudActivity !== undefined} autoHideDuration={6000}>
+      <Snackbar open={alertCloudActivity !== undefined}>
         <Alert severity="success" variant="filled" sx={{ width: '100%' }}>
           {alertCloudActivity}
+          <LinearProgress color="secondary" />
         </Alert>
       </Snackbar>
       <Snackbar
@@ -678,14 +658,19 @@ export default function Component() {
         autoHideDuration={6000}
         onClose={() => setAlertNoKey(false)}
       >
-        <Alert
-          onClose={() => setAlertNoKey(false)}
-          severity="warning"
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert severity="warning" variant="filled" sx={{ width: '100%' }}>
           No API key for Open AI configured. GO to AI Configuration tab and add
           a valid OpenAI API key first.
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={aiResponseError !== undefined}
+        autoHideDuration={6000}
+        onClose={() => setAiResponseError(undefined)}
+      >
+        <Alert severity="error" variant="filled" sx={{ width: '100%' }}>
+          Error calling AI Cloud API:
+          {`${aiResponseError}`}
         </Alert>
       </Snackbar>
     </>

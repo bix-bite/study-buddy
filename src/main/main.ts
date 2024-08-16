@@ -17,7 +17,7 @@ import log from 'electron-log';
 import { IpcMainInvokeEvent } from 'electron/main';
 import { resolveHtmlPath } from './util';
 import SimpleElectronStore from './backend/SimpleElectronStore';
-import ChatService from './backend/ChatService';
+import ChatService, { IChatServiceResponse } from './backend/ChatService';
 import Shared from '../shared';
 
 class AppUpdater {
@@ -31,42 +31,39 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 const dataStore = new SimpleElectronStore();
-
+const chatSvc = new ChatService();
 ipcMain.handle(
   'transcribe',
   async (
     event: IpcMainInvokeEvent,
     file: string,
     openAiKey: string,
-  ): Promise<string> => {
+  ): Promise<IChatServiceResponse> => {
     console.log(`ChatService Transcribe with key ${openAiKey}`);
-    const chatSvc = new ChatService(openAiKey, '');
-    return chatSvc.Transcribe(file);
+    return chatSvc.transcribe(file);
   },
 );
 ipcMain.handle(
-  'transcriptionSummry',
+  'transcriptSummry',
   async (
     event: IpcMainInvokeEvent,
-    transcription: string,
+    transcript: string,
     openAiKey: string,
-  ): Promise<string> => {
-    console.log(`ChatService TranscriptionSummry with key ${openAiKey}`);
-    const chatSvc = new ChatService(openAiKey, '');
-    return chatSvc.TranscriptionSummry(transcription);
+  ): Promise<IChatServiceResponse> => {
+    console.log(`ChatService transcriptSummry with key ${openAiKey}`);
+    return chatSvc.transcriptSummary(transcript);
   },
 );
 
 ipcMain.handle(
-  'transcriptionStudyGuide',
+  'transcriptStudyGuide',
   async (
     event: IpcMainInvokeEvent,
-    transcription: string,
+    transcript: string,
     openAiKey: string,
-  ): Promise<string> => {
-    console.log(`ChatService TranscriptionSummry with key ${openAiKey}`);
-    const chatSvc = new ChatService(openAiKey, '');
-    return chatSvc.TranscriptionStudyGuide(transcription);
+  ): Promise<IChatServiceResponse> => {
+    console.log(`ChatService transcriptSummry with key ${openAiKey}`);
+    return chatSvc.transcriptStudyGuide(transcript);
   },
 );
 ipcMain.handle(
