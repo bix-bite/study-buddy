@@ -164,7 +164,7 @@ const createWindow = async () => {
     show: false,
     width: 2048,
     height: 1024,
-    icon: getAssetPath('icon.png'),
+    icon: getAssetPath('bixbitelogo.png'),
     webPreferences: {
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
