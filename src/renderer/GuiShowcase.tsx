@@ -18,6 +18,7 @@ import MailIcon from '@mui/icons-material/Mail';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import {
+  AlertTitle,
   Button,
   Divider,
   Snackbar,
@@ -112,6 +113,12 @@ export default function GuiShowcase() {
 
   return (
     <div>
+      <Alert severity="success">
+        <AlertTitle>All the material UI components on offer</AlertTitle>
+        There's nothing for you to do on this tab. It's just here for me to see
+        the various UI components and keep a reference in the code to how they
+        are configure.
+      </Alert>
       <Accordion defaultExpanded>
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}

@@ -32,6 +32,10 @@ class SimpleElectronStore {
     };
   }
 
+  getUserDataPath(): string {
+    return this.userDataPath;
+  }
+
   get<T>(store: string, key: string): T {
     const fi = this.lazyLoad(store);
     fi.statusList.push('get');

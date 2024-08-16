@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import * as React from 'react';
 import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
 
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -9,69 +8,12 @@ import {
   MenuItem,
   Select,
   Stack,
-  styled,
-  TextareaAutosize as BaseTextareaAutosize,
   FormControl,
   InputLabel,
   Typography,
 } from '@mui/material';
 import Shared from '../shared';
-
-const blue = {
-  100: '#DAECFF',
-  200: '#b6daff',
-  400: '#3399FF',
-  500: '#007FFF',
-  600: '#0072E5',
-  900: '#003A75',
-};
-
-const grey = {
-  50: '#F3F6F9',
-  100: '#E5EAF2',
-  200: '#DAE2ED',
-  300: '#C7D0DD',
-  400: '#B0B8C4',
-  500: '#9DA8B7',
-  600: '#6B7A90',
-  700: '#434D5B',
-  800: '#303740',
-  900: '#1C2025',
-};
-
-const TextareaAutosize = styled(BaseTextareaAutosize)(
-  ({ theme }) => `
-  box-sizing: border-box;
-  width: 90%;
-  max-width: 95%;
-  min-width: 90%;
-  max-height: 80%;
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.5;
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: ${theme.palette.mode === 'dark' ? grey[300] : grey[900]};
-  background: ${theme.palette.mode === 'dark' ? grey[900] : '#fff'};
-  border: 1px solid ${theme.palette.mode === 'dark' ? grey[700] : grey[200]};
-  box-shadow: 0px 2px 2px ${theme.palette.mode === 'dark' ? grey[900] : grey[50]};
-
-  &:hover {
-    border-color: ${blue[400]};
-  }
-
-  &:focus {
-    border-color: ${blue[400]};
-    box-shadow: 0 0 0 3px ${theme.palette.mode === 'dark' ? blue[600] : blue[200]};
-  }
-
-  // firefox
-  &:focus-visible {
-    outline: 0;
-  }
-`,
-);
+import TextareaAutosize from './TextAreaAutoSize';
 
 export default function AiConfig() {
   const [openAiKey, setOpenAiKey] = React.useState('');
@@ -176,7 +118,7 @@ export default function AiConfig() {
 
   return (
     <Grid container>
-      <Grid item xs={12}>
+      <Grid p={3} item xs={4}>
         <Stack spacing={2}>
           <TextField
             sx={{ margin: '20px' }}
@@ -207,6 +149,10 @@ export default function AiConfig() {
               ))}
             </Select>
           </FormControl>
+        </Stack>
+      </Grid>
+      <Grid p={3} item xs={4}>
+        <Stack spacing={2}>
           <TextField
             sx={{ margin: '20px' }}
             fullWidth
@@ -236,6 +182,10 @@ export default function AiConfig() {
               ))}
             </Select>
           </FormControl>
+        </Stack>
+      </Grid>
+      <Grid p={3} item xs={4}>
+        <Stack spacing={2}>
           <FormControl sx={{ m: 1, minWidth: 120 }}>
             <InputLabel id="demo-simple-select-helper-label">
               Preferred LLM
@@ -256,22 +206,34 @@ export default function AiConfig() {
               ))}
             </Select>
           </FormControl>
+        </Stack>
+      </Grid>
+      <Grid p={3} item xs={6}>
+        <Stack spacing={2}>
           <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <Typography id="demo-simple-select-helper-label">
+            <Typography paddingY={3} variant='h5'>
               Summary Request Prompt
+            </Typography>
+            <Typography marginBottom={2} variant="caption" display="block" gutterBottom>
+              Prompt message sent to LLM to create a summary of transcript text.
             </Typography>
             <TextareaAutosize
               value={summaryPrompt}
-              minRows={1}
+              minRows={2}
               maxRows={3}
               onChange={(e) => setSummaryPrompt(e.target.value)}
             />
           </FormControl>
           <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <Typography>Study Guide Request Prompt</Typography>
+            <Typography paddingY={3}  variant='h5'>
+              Study Guide Request Prompt
+            </Typography>
+            <Typography marginBottom={2} variant="caption" display="block" gutterBottom>
+              Prompt message sent to LLM to create a study guide of transcript text.
+            </Typography>
             <TextareaAutosize
               value={studyGuidePrompt}
-              minRows={1}
+              minRows={2}
               maxRows={3}
               onChange={(e) => SetstudyGuidePrompt(e.target.value)}
             />

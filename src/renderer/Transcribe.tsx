@@ -16,12 +16,12 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import {
   DialogActions,
-  TextareaAutosize as BaseTextareaAutosize,
   styled,
   Modal,
   Snackbar,
   Alert,
   LinearProgress,
+  Tooltip,
 } from '@mui/material';
 
 // import MarkdownPreview from '@uiw/react-markdown-preview';
@@ -29,6 +29,7 @@ import Markdown from 'react-markdown';
 import { ArrowCircleUpTwoTone } from '@mui/icons-material';
 import Shared from '../shared';
 import { IChatServiceResponse } from '../main/backend/ChatService';
+import TextareaAutosize from './TextAreaAutoSize';
 
 type states = 'Start' | 'Stop' | 'Clear';
 
@@ -40,61 +41,6 @@ interface IInstance {
   AISummary: string;
   AIStudyGuide: string;
 }
-
-const blue = {
-  100: '#DAECFF',
-  200: '#b6daff',
-  400: '#3399FF',
-  500: '#007FFF',
-  600: '#0072E5',
-  900: '#003A75',
-};
-
-const grey = {
-  50: '#F3F6F9',
-  100: '#E5EAF2',
-  200: '#DAE2ED',
-  300: '#C7D0DD',
-  400: '#B0B8C4',
-  500: '#9DA8B7',
-  600: '#6B7A90',
-  700: '#434D5B',
-  800: '#303740',
-  900: '#1C2025',
-};
-
-const TextareaAutosize = styled(BaseTextareaAutosize)(
-  ({ theme }) => `
-  box-sizing: border-box;
-  width: 90%;
-  max-width: 95%;
-  max-height: 80%;
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.5;
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: ${theme.palette.mode === 'dark' ? grey[300] : grey[900]};
-  background: ${theme.palette.mode === 'dark' ? grey[900] : '#fff'};
-  border: 1px solid ${theme.palette.mode === 'dark' ? grey[700] : grey[200]};
-  box-shadow: 0px 2px 2px ${theme.palette.mode === 'dark' ? grey[900] : grey[50]};
-
-  &:hover {
-    border-color: ${blue[400]};
-  }
-
-  &:focus {
-    border-color: ${blue[400]};
-    box-shadow: 0 0 0 3px ${theme.palette.mode === 'dark' ? blue[600] : blue[200]};
-  }
-
-  // firefox
-  &:focus-visible {
-    outline: 0;
-  }
-`,
-);
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
   '&:nth-of-type(odd)': {
@@ -488,13 +434,22 @@ export default function Component() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              onClick={(e) => editProperty(row, 'note')}
-                              variant="outlined"
-                              size="small"
+                            <Tooltip
+                              arrow
+                              title={
+                                row.AIStudyGuide?.length > 0
+                                  ? 'View or edit your note'
+                                  : 'Add a note'
+                              }
                             >
-                              edit
-                            </Button>
+                              <Button
+                                onClick={(e) => editProperty(row, 'note')}
+                                variant="outlined"
+                                size="small"
+                              >
+                                edit
+                              </Button>
+                            </Tooltip>
                           </TableCell>
                           <TableCell>
                             <Typography
@@ -503,68 +458,122 @@ export default function Component() {
                               gutterBottom
                             >
                               {maybeShorten(row.transcript, 40) || (
-                                <Button
-                                  onClick={(e) => setRequestTranscript(row)}
-                                  variant="outlined"
+                                <Tooltip
+                                  arrow
+                                  title="transcribe audio to text.  You will need an OpenAI api key saved in the AI CONFIGURATION TAB for this to work"
                                 >
-                                  Transcribe
-                                </Button>
+                                  <Button
+                                    onClick={(e) => setRequestTranscript(row)}
+                                    variant="outlined"
+                                  >
+                                    Transcribe
+                                  </Button>
+                                </Tooltip>
                               )}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              onClick={(e) => {
-                                setMarkdown(false);
-                                editProperty(row, 'transcript');
-                              }}
-                              size="small"
+                            <Tooltip
+                              arrow
+                              title={
+                                row.transcript?.length > 0
+                                  ? 'View or edit transcript. Delete content to allow for transcription rerun.'
+                                  : 'Manually add a transcript'
+                              }
                             >
-                              <ArrowCircleUpTwoTone />
-                            </Button>
+                              <Button
+                                onClick={(e) => {
+                                  setMarkdown(false);
+                                  editProperty(row, 'transcript');
+                                }}
+                                size="small"
+                              >
+                                <ArrowCircleUpTwoTone />
+                              </Button>
+                            </Tooltip>
                           </TableCell>
                           <TableCell>
                             {maybeShorten(row.AISummary, 40) || (
-                              <Button
-                                onClick={(e) => setRequestSummary(row)}
-                                variant="outlined"
+                              <Tooltip
+                                arrow
+                                title="transcribe audio to text.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
                               >
-                                Summarize
-                              </Button>
+                                <span>
+                                  <Button
+                                    disabled={
+                                      row.transcript === undefined ||
+                                      row.transcript.length === 0
+                                    }
+                                    onClick={(e) => setRequestSummary(row)}
+                                    variant="outlined"
+                                  >
+                                    Summarize
+                                  </Button>
+                                </span>
+                              </Tooltip>
                             )}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              onClick={(e) => {
-                                setMarkdown(row.AISummary?.length > 0);
-                                editProperty(row, 'AISummary');
-                              }}
-                              size="small"
+                            <Tooltip
+                              arrow
+                              title={
+                                row.AISummary?.length > 0
+                                  ? 'View or edit summary.  Delete content to allow for summary rerun.'
+                                  : 'Manually add your own summary'
+                              }
                             >
-                              <ArrowCircleUpTwoTone />
-                            </Button>
+                              <Button
+                                onClick={(e) => {
+                                  setMarkdown(row.AISummary?.length > 0);
+                                  editProperty(row, 'AISummary');
+                                }}
+                                size="small"
+                              >
+                                <ArrowCircleUpTwoTone />
+                              </Button>
+                            </Tooltip>
                           </TableCell>
 
                           <TableCell>
                             {maybeShorten(row.AIStudyGuide, 40) || (
-                              <Button
-                                onClick={(e) => setRequestStudyGuide(row)}
-                                variant="outlined"
+                              <Tooltip
+                                arrow
+                                title="transcribe audio to text.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
                               >
-                                Create
-                              </Button>
+                                <span>
+                                  <Button
+                                    disabled={
+                                      row.transcript === undefined ||
+                                      row.transcript.length === 0
+                                    }
+                                    onClick={(e) => setRequestStudyGuide(row)}
+                                    variant="outlined"
+                                  >
+                                    Create
+                                  </Button>
+                                </span>
+                              </Tooltip>
                             )}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              onClick={(e) => {
-                                setMarkdown(row.AIStudyGuide?.length > 0);
-                                editProperty(row, 'AIStudyGuide');
-                              }}
-                              size="small"
+                            <Tooltip
+                              arrow
+                              title={
+                                row.AIStudyGuide?.length > 0
+                                  ? 'View or edit study guide.  Delete content to allow for study rerun.'
+                                  : 'Manually add your own study guide'
+                              }
                             >
-                              <ArrowCircleUpTwoTone />
-                            </Button>
+                              <Button
+                                onClick={(e) => {
+                                  setMarkdown(row.AIStudyGuide?.length > 0);
+                                  editProperty(row, 'AIStudyGuide');
+                                }}
+                                size="small"
+                              >
+                                <ArrowCircleUpTwoTone />
+                              </Button>
+                            </Tooltip>
                           </TableCell>
                         </StyledTableRow>
                       );

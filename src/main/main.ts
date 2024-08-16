@@ -71,6 +71,12 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, store: string, key: string) =>
     dataStore.get(store, key),
 );
+ipcMain.handle(
+  'data-path',
+  (event: IpcMainInvokeEvent) =>
+    dataStore.getUserDataPath(),
+);
+
 ipcMain.handle('store-fileinfo', (event: IpcMainInvokeEvent, store: string) =>
   dataStore.getFileInfo(store),
 );
@@ -156,8 +162,8 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    width: 2048,
+    height: 1024,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged

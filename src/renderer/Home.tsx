@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Transcribe from './Transcribe';
 import GuiShowcase from './GuiShowcase';
 import AiConfig from './AiConfig';
+import Help from './Help';
 
 export default function ItDoesntMatter() {
   const [value, setValue] = React.useState(0);
@@ -24,6 +25,7 @@ export default function ItDoesntMatter() {
           <Tab label="Transcribe" id="tab-0" aria-controls="pnl-0" />
           <Tab label="AI Configuration" id="tab-1" aria-controls="pnl-1" />
           <Tab label="Gui Showcase" id="tab-2" aria-controls="pnl-2" />
+          <Tab label="Help" id="tab-3" aria-controls="pnl-3" />
         </Tabs>
       </Box>
 
@@ -60,6 +62,18 @@ export default function ItDoesntMatter() {
         {value === 2 && (
           <Box sx={{ p: 3 }}>
             <GuiShowcase />
+          </Box>
+        )}
+      </div>
+      <div
+        role="tabpanel"
+        hidden={value !== 3}
+        id="pnl-3"
+        aria-labelledby="tab-3"
+      >
+        {value === 3 && (
+          <Box sx={{ p: 3 }}>
+            <Help />
           </Box>
         )}
       </div>

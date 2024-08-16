@@ -28,6 +28,7 @@ const electronHandler = {
       ipcRenderer.invoke('store-fileinfo', store, key),
     StoreGet: (store: string, key: string) =>
       ipcRenderer.invoke('store-get', store, key),
+    DataPath: (): Promise<string> => ipcRenderer.invoke('data-path'),
     StoreSet: (store: string, key: string, value: any) =>
       ipcRenderer.invoke('store-set', store, key, value),
     StoreDelete: (store: string, key: string) =>
