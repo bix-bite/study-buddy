@@ -1,7 +1,7 @@
 {
   "name": "study-buddy",
-  "version": "0.0.1",
-  "description": "A foundation for scalable desktop apps",
+  "version": "0.0.2",
+  "description": "Recording, transcribing, summarizing and building study guides from in person lectures",
   "license": "MIT",
   "author": {
     "name": "Bixbite Industries",

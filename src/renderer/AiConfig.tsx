@@ -11,6 +11,9 @@ import {
   Stack,
   styled,
   TextareaAutosize as BaseTextareaAutosize,
+  FormControl,
+  InputLabel,
+  Typography,
 } from '@mui/material';
 import Shared from '../shared';
 
@@ -41,6 +44,7 @@ const TextareaAutosize = styled(BaseTextareaAutosize)(
   box-sizing: border-box;
   width: 90%;
   max-width: 95%;
+  min-width: 90%;
   max-height: 80%;
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.875rem;
@@ -183,21 +187,26 @@ export default function AiConfig() {
             onChange={(e) => setOpenAiKey(e.target.value)}
             variant="standard"
           />
-          <Select
-            sx={{ margin: '20px' }}
-            fullWidth
-            labelId="openAiModel"
-            id="openAiModel"
-            value={openAiModel}
-            label="Open AI Model"
-            onChange={(e) => setOpenAiModel(e.target.value)}
-          >
-            {openAiModelList.map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-simple-select-helper-label">
+              Open AI Model
+            </InputLabel>
+            <Select
+              sx={{ margin: '20px' }}
+              fullWidth
+              labelId="openAiModel"
+              id="openAiModel"
+              value={openAiModel}
+              label="Open AI Model"
+              onChange={(e) => setOpenAiModel(e.target.value)}
+            >
+              {openAiModelList.map((m) => (
+                <MenuItem key={m} value={m}>
+                  {m}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             sx={{ margin: '20px' }}
             fullWidth
@@ -207,48 +216,66 @@ export default function AiConfig() {
             onChange={(e) => setAnthropicKey(e.target.value)}
             variant="standard"
           />
-          <Select
-            sx={{ margin: '20px' }}
-            fullWidth
-            labelId="anthropicKey"
-            id="anthropicKey"
-            value={anthropicModel}
-            label="Anthropic Model"
-            onChange={(e) => setAnthropicModel(e.target.value)}
-          >
-            {anthropicModelList.map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-          <Select
-            sx={{ margin: '20px' }}
-            fullWidth
-            labelId="preferredLLM"
-            id="preferredLLM"
-            value={preferredLLM}
-            label="preferred LLM"
-            onChange={(e) => setPreferredLLM(e.target.value)}
-          >
-            {llmList.map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-          <TextareaAutosize
-            value={summaryPrompt}
-            minRows={1}
-            maxRows={3}
-            onChange={(e) => setSummaryPrompt(e.target.value)}
-          />
-          <TextareaAutosize
-            value={studyGuidePrompt}
-            minRows={1}
-            maxRows={3}
-            onChange={(e) => SetstudyGuidePrompt(e.target.value)}
-          />
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-simple-select-helper-label">
+              Anthropic Model
+            </InputLabel>
+            <Select
+              sx={{ margin: '20px' }}
+              fullWidth
+              labelId="anthropicModel"
+              id="anthropicModel"
+              value={anthropicModel}
+              label="Anthropic Model"
+              onChange={(e) => setAnthropicModel(e.target.value)}
+            >
+              {anthropicModelList.map((m) => (
+                <MenuItem key={m} value={m}>
+                  {m}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-simple-select-helper-label">
+              Preferred LLM
+            </InputLabel>
+            <Select
+              sx={{ margin: '20px' }}
+              fullWidth
+              labelId="preferredLLM"
+              id="preferredLLM"
+              value={preferredLLM}
+              label="preferred LLM"
+              onChange={(e) => setPreferredLLM(e.target.value)}
+            >
+              {llmList.map((m) => (
+                <MenuItem key={m} value={m}>
+                  {m}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <Typography id="demo-simple-select-helper-label">
+              Summary Request Prompt
+            </Typography>
+            <TextareaAutosize
+              value={summaryPrompt}
+              minRows={1}
+              maxRows={3}
+              onChange={(e) => setSummaryPrompt(e.target.value)}
+            />
+          </FormControl>
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <Typography>Study Guide Request Prompt</Typography>
+            <TextareaAutosize
+              value={studyGuidePrompt}
+              minRows={1}
+              maxRows={3}
+              onChange={(e) => SetstudyGuidePrompt(e.target.value)}
+            />
+          </FormControl>
         </Stack>
       </Grid>
       <Grid item xs={12}>

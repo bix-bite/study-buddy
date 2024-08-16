@@ -25,7 +25,7 @@ function Hello() {
       <Box sx={{ flexGrow: 1 }}>
         <AppBar position="static">
           <Toolbar variant="dense">
-            <IconButton
+            {/* <IconButton
               size="large"
               edge="start"
               color="inherit"
@@ -33,7 +33,7 @@ function Hello() {
               sx={{ mr: 2 }}
             >
               <MenuIcon />
-            </IconButton>
+            </IconButton> */}
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Study Buddy
             </Typography>
