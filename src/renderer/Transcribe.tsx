@@ -449,13 +449,6 @@ export default function Component() {
         </Button>
         <Button
           disabled={mediaRecorder !== undefined}
-          onClick={() => setAddManual(true)}
-          variant="text"
-        >
-          Add Manual Transcript
-        </Button>
-        <Button
-          disabled={mediaRecorder !== undefined}
           onClick={() => setAddAudioFilePath('paste audio file path')}
           variant="text"
         >
