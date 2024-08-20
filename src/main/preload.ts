@@ -24,6 +24,8 @@ const electronHandler = {
       ipcRenderer.invoke('transcriptStudyGuide', transcript, openAiKey),
     saveAudio: (arrayBuffer: ArrayBuffer) =>
       ipcRenderer.invoke('save-audio', arrayBuffer),
+    compressAudio: (audioFile: string) =>
+      ipcRenderer.invoke('compress-audio', audioFile),
     StoreGetFileInfo: (store: string, key: string) =>
       ipcRenderer.invoke('store-fileinfo', store, key),
     StoreGet: (store: string, key: string) =>

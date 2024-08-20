@@ -189,6 +189,13 @@
       "node_modules",
       "package.json"
     ],
+    "extraFiles": [
+      {
+        "from": "resources/bin",
+        "to": "resources/bin",
+        "filter": ["**/*"]
+      }
+    ],
     "mac": {
       "sign": ".erb/scripts/notarize.js",
       "notarize": false,

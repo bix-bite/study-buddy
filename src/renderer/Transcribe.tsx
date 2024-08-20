@@ -22,11 +22,21 @@ import {
   Alert,
   LinearProgress,
   Tooltip,
+  FormControl,
+  InputLabel,
+  TextField,
 } from '@mui/material';
 
 // import MarkdownPreview from '@uiw/react-markdown-preview';
 import Markdown from 'react-markdown';
-import { ArrowCircleUpTwoTone } from '@mui/icons-material';
+import {
+  ArrowCircleUpTwoTone,
+  SummarizeTwoTone,
+  CompressTwoTone,
+  EditNoteTwoTone,
+  NoteAltTwoTone,
+  TranscribeTwoTone,
+} from '@mui/icons-material';
 import Shared from '../shared';
 import { IChatServiceResponse } from '../main/backend/ChatService';
 import TextareaAutosize from './TextAreaAutoSize';
@@ -56,6 +66,9 @@ export default function Component() {
   const [instanceList, setInstanceList] = React.useState<IInstance[]>([]);
   const [sortedList, setSortedList] = React.useState<IInstance[]>([]);
   const [visibleList, setVisibleList] = React.useState<IInstance[]>([]);
+  const [addAudioFilePath, setAddAudioFilePath] = React.useState<
+    string | undefined
+  >(undefined);
 
   const [updateFlag, setUpdateFlag] = React.useState(0);
 
@@ -93,6 +106,10 @@ export default function Component() {
   const [rowsPerPage, setRowsPerPage] = React.useState(8);
 
   const [requestTranscript, setRequestTranscript] = React.useState<
+    IInstance | undefined
+  >(undefined);
+
+  const [requestCompress, setRequestCompress] = React.useState<
     IInstance | undefined
   >(undefined);
 
@@ -167,6 +184,23 @@ export default function Component() {
     }
   }, [addManual]);
 
+  const applyAudioFilePath = () => {
+    if (addAudioFilePath !== undefined) {
+      const manualItem: IInstance = {
+        id: `${Shared.formattedNow()}_manual`,
+        file: addAudioFilePath,
+        transcript: '',
+        AIStudyGuide: '',
+        AISummary: '',
+        note: 'Manually imported audio file',
+      };
+
+      setInstanceList([...instanceList, manualItem]);
+    }
+
+    setAddAudioFilePath(undefined);
+  };
+
   // update visible list of records based on current page of table
   React.useEffect(() => {
     const start = page * rowsPerPage;
@@ -209,6 +243,34 @@ export default function Component() {
       }
     }
   };
+
+  // compress on request
+  // transcribe on request
+  React.useEffect(() => {
+    const asyncCall = async () => {
+      if (
+        requestCompress &&
+        requestCompress.file &&
+        requestCompress.file.endsWith('mp3')
+      ) {
+        const newFileName = await window.electron.ipcRenderer.compressAudio(
+          requestCompress?.file,
+        );
+
+        const toUpdate = instanceList.find((x) => x.id === requestCompress.id);
+        if (toUpdate) {
+          toUpdate.file = newFileName;
+          setInstanceList([...instanceList]);
+          setUpdateFlag(updateFlag + 1);
+          setAlertCloudActivity(undefined);
+        }
+      }
+    };
+    if (requestCompress !== undefined) {
+      setAlertCloudActivity('Compressing.  Might take a while');
+      asyncCall();
+    }
+  }, [requestCompress]);
 
   // transcribe on request
   React.useEffect(() => {
@@ -385,6 +447,20 @@ export default function Component() {
         >
           Add Manual Transcript
         </Button>
+        <Button
+          disabled={mediaRecorder !== undefined}
+          onClick={() => setAddManual(true)}
+          variant="text"
+        >
+          Add Manual Transcript
+        </Button>
+        <Button
+          disabled={mediaRecorder !== undefined}
+          onClick={() => setAddAudioFilePath('paste audio file path')}
+          variant="text"
+        >
+          Add audio file path
+        </Button>
         {alertCloudActivity && <p>{alertCloudActivity}</p>}
       </Stack>
       <h4>{msg}</h4>
@@ -397,11 +473,11 @@ export default function Component() {
                 <Table size="small">
                   <TableHead>
                     <StyledTableRow>
-                      <TableCell>File</TableCell>
+                      <TableCell colSpan={2}>File</TableCell>
                       <TableCell colSpan={2}>Note</TableCell>
-                      <TableCell colSpan={2}>transcript</TableCell>
-                      <TableCell colSpan={2}>AI Summary</TableCell>
-                      <TableCell colSpan={2}>Study Guide</TableCell>
+                      <TableCell>transcript</TableCell>
+                      <TableCell>AI Summary</TableCell>
+                      <TableCell>Study Guide</TableCell>
                     </StyledTableRow>
                   </TableHead>
                   <TableBody>
@@ -418,11 +494,27 @@ export default function Component() {
                           sx={{ cursor: 'pointer' }}
                         >
                           <TableCell>
-                            {
-                              row.file.split('\\')[
+                            {row.file
+                              .split('\\')
+                              [
                                 row.file.split('\\').length - 1
-                              ]
-                            }
+                              ].replaceAll('_', ' ')}
+                          </TableCell>
+                          <TableCell>
+                            {row.file.endsWith('mp3') && (
+                              <Tooltip
+                                arrow
+                                title="Compress audio to save file space before sending off for transcription"
+                              >
+                                <Button
+                                  sx={{ marginLeft: '1px' }}
+                                  onClick={() => setRequestCompress(row)}
+                                  variant="outlined"
+                                >
+                                  <CompressTwoTone />
+                                </Button>
+                              </Tooltip>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Typography
@@ -443,137 +535,167 @@ export default function Component() {
                               }
                             >
                               <Button
+                                sx={{ marginLeft: '1px' }}
                                 onClick={(e) => editProperty(row, 'note')}
                                 variant="outlined"
                                 size="small"
                               >
-                                edit
+                                <EditNoteTwoTone />
                               </Button>
                             </Tooltip>
                           </TableCell>
                           <TableCell>
-                            <Typography
-                              variant="caption"
-                              display="block"
-                              gutterBottom
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexFlow: 'row nowrap',
+                                alignItems: 'stretch',
+                                justifyContent: 'space-between',
+                              }}
                             >
-                              {maybeShorten(row.transcript, 40) || (
-                                <Tooltip
-                                  arrow
-                                  title="transcribe audio to text.  You will need an OpenAI api key saved in the AI CONFIGURATION TAB for this to work"
-                                >
-                                  <Button
-                                    onClick={(e) => setRequestTranscript(row)}
-                                    variant="outlined"
-                                  >
-                                    Transcribe
-                                  </Button>
-                                </Tooltip>
-                              )}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip
-                              arrow
-                              title={
-                                row.transcript?.length > 0
-                                  ? 'View or edit transcript. Delete content to allow for transcription rerun.'
-                                  : 'Manually add a transcript'
-                              }
-                            >
-                              <Button
-                                onClick={(e) => {
-                                  setMarkdown(false);
-                                  editProperty(row, 'transcript');
-                                }}
-                                size="small"
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                gutterBottom
                               >
-                                <ArrowCircleUpTwoTone />
-                              </Button>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>
-                            {maybeShorten(row.AISummary, 40) || (
+                                {maybeShorten(row.transcript, 40) || (
+                                  <Tooltip
+                                    arrow
+                                    title="transcribe audio to text.  You will need an OpenAI api key saved in the AI CONFIGURATION TAB for this to work"
+                                  >
+                                    <Button
+                                      sx={{ marginLeft: '1px' }}
+                                      onClick={() => setRequestTranscript(row)}
+                                      variant="outlined"
+                                    >
+                                      <TranscribeTwoTone />
+                                    </Button>
+                                  </Tooltip>
+                                )}
+                              </Typography>
                               <Tooltip
                                 arrow
-                                title="transcribe audio to text.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
+                                title={
+                                  row.transcript?.length > 0
+                                    ? 'View or edit transcript. Delete content to allow for transcription rerun.'
+                                    : 'Manually add a transcript'
+                                }
                               >
-                                <span>
-                                  <Button
-                                    disabled={
-                                      row.transcript === undefined ||
-                                      row.transcript.length === 0
-                                    }
-                                    onClick={(e) => setRequestSummary(row)}
-                                    variant="outlined"
-                                  >
-                                    Summarize
-                                  </Button>
-                                </span>
+                                <Button
+                                  sx={{ marginLeft: '1px' }}
+                                  onClick={(e) => {
+                                    setMarkdown(false);
+                                    editProperty(row, 'transcript');
+                                  }}
+                                  size="small"
+                                >
+                                  <ArrowCircleUpTwoTone />
+                                </Button>
                               </Tooltip>
-                            )}
+                            </Box>
                           </TableCell>
                           <TableCell>
-                            <Tooltip
-                              arrow
-                              title={
-                                row.AISummary?.length > 0
-                                  ? 'View or edit summary.  Delete content to allow for summary rerun.'
-                                  : 'Manually add your own summary'
-                              }
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexFlow: 'row nowrap',
+                                alignItems: 'stretch',
+                                justifyContent: 'space-between',
+                              }}
                             >
-                              <Button
-                                onClick={(e) => {
-                                  setMarkdown(row.AISummary?.length > 0);
-                                  editProperty(row, 'AISummary');
-                                }}
-                                size="small"
+                              {maybeShorten(row.AISummary, 40) || (
+                                <Tooltip
+                                  arrow
+                                  title="transcribe audio to text.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
+                                >
+                                  <span>
+                                    <Button
+                                      sx={{ marginLeft: '1px' }}
+                                      disabled={
+                                        row.transcript === undefined ||
+                                        row.transcript.length === 0
+                                      }
+                                      onClick={(e) => setRequestSummary(row)}
+                                      variant="outlined"
+                                    >
+                                      <SummarizeTwoTone />
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                              )}
+
+                              <Tooltip
+                                arrow
+                                title={
+                                  row.AISummary?.length > 0
+                                    ? 'View or edit summary.  Delete content to allow for summary rerun.'
+                                    : 'Manually add your own summary'
+                                }
                               >
-                                <ArrowCircleUpTwoTone />
-                              </Button>
-                            </Tooltip>
+                                <Button
+                                  sx={{ marginLeft: '1px' }}
+                                  onClick={(e) => {
+                                    setMarkdown(row.AISummary?.length > 0);
+                                    editProperty(row, 'AISummary');
+                                  }}
+                                  size="small"
+                                >
+                                  <ArrowCircleUpTwoTone />
+                                </Button>
+                              </Tooltip>
+                            </Box>
                           </TableCell>
 
                           <TableCell>
-                            {maybeShorten(row.AIStudyGuide, 40) || (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexFlow: 'row nowrap',
+                                alignItems: 'stretch',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              {maybeShorten(row.AIStudyGuide, 40) || (
+                                <Tooltip
+                                  arrow
+                                  title="create study guide from transcript.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
+                                >
+                                  <span>
+                                    <Button
+                                      sx={{ marginLeft: '1px' }}
+                                      disabled={
+                                        row.transcript === undefined ||
+                                        row.transcript.length === 0
+                                      }
+                                      onClick={(e) => setRequestStudyGuide(row)}
+                                      variant="outlined"
+                                    >
+                                      <NoteAltTwoTone />
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                              )}
+
                               <Tooltip
                                 arrow
-                                title="transcribe audio to text.  You will need an OpenAI or Anthropic api key saved, depending on the preferred LLM selection in the AI CONFIGURATION TAB for this to work"
+                                title={
+                                  row.AIStudyGuide?.length > 0
+                                    ? 'View or edit study guide.  Delete content to allow for study rerun.'
+                                    : 'Manually add your own study guide'
+                                }
                               >
-                                <span>
-                                  <Button
-                                    disabled={
-                                      row.transcript === undefined ||
-                                      row.transcript.length === 0
-                                    }
-                                    onClick={(e) => setRequestStudyGuide(row)}
-                                    variant="outlined"
-                                  >
-                                    Create
-                                  </Button>
-                                </span>
+                                <Button
+                                  sx={{ marginLeft: '1px' }}
+                                  onClick={(e) => {
+                                    setMarkdown(row.AIStudyGuide?.length > 0);
+                                    editProperty(row, 'AIStudyGuide');
+                                  }}
+                                  size="small"
+                                >
+                                  <ArrowCircleUpTwoTone />
+                                </Button>
                               </Tooltip>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip
-                              arrow
-                              title={
-                                row.AIStudyGuide?.length > 0
-                                  ? 'View or edit study guide.  Delete content to allow for study rerun.'
-                                  : 'Manually add your own study guide'
-                              }
-                            >
-                              <Button
-                                onClick={(e) => {
-                                  setMarkdown(row.AIStudyGuide?.length > 0);
-                                  editProperty(row, 'AIStudyGuide');
-                                }}
-                                size="small"
-                              >
-                                <ArrowCircleUpTwoTone />
-                              </Button>
-                            </Tooltip>
+                            </Box>
                           </TableCell>
                         </StyledTableRow>
                       );
@@ -596,6 +718,42 @@ export default function Component() {
           </Box>
         </Grid>
       </Grid>
+      <Modal open={addAudioFilePath !== undefined}>
+        <Box
+          sx={{
+            position: 'relative',
+            top: '10vh',
+            height: '80vh',
+            left: '10vw',
+            width: '80vw',
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: (theme) => theme.shadows[5],
+            p: 4,
+          }}
+        >
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-simple-select-helper-label">
+              Audio file path
+            </InputLabel>
+            <TextField
+              sx={{ margin: '20px' }}
+              fullWidth
+              name="audioFIlePath"
+              label="Audio file path:"
+              value={addAudioFilePath}
+              onChange={(e) => setAddAudioFilePath(e.target.value)}
+              variant="standard"
+            />
+          </FormControl>
+          <DialogActions>
+            <Button onClick={() => setAddAudioFilePath(undefined)}>
+              Cancel
+            </Button>
+            <Button onClick={() => applyAudioFilePath(true)}>Save</Button>
+          </DialogActions>
+        </Box>
+      </Modal>
       <Modal open={editText !== undefined}>
         <Box
           sx={{
@@ -612,7 +770,10 @@ export default function Component() {
         >
           <h4>
             Edit {editText?.property}{' '}
-            <Button onClick={() => setMarkdown(!markdown)}>
+            <Button
+              sx={{ marginLeft: '1px' }}
+              onClick={() => setMarkdown(!markdown)}
+            >
               Toggle Markdown
             </Button>
           </h4>

@@ -15,10 +15,11 @@ import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import { IpcMainInvokeEvent } from 'electron/main';
-import { resolveHtmlPath } from './util';
+import { resolveHtmlPath, ffMpegPath } from './util';
 import SimpleElectronStore from './backend/SimpleElectronStore';
 import ChatService, { IChatServiceResponse } from './backend/ChatService';
 import Shared from '../shared';
+import { exec, execSync } from 'child_process';
 
 class AppUpdater {
   constructor() {
@@ -71,10 +72,8 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, store: string, key: string) =>
     dataStore.get(store, key),
 );
-ipcMain.handle(
-  'data-path',
-  (event: IpcMainInvokeEvent) =>
-    dataStore.getUserDataPath(),
+ipcMain.handle('data-path', () =>
+  dataStore.getUserDataPath(),
 );
 
 ipcMain.handle('store-fileinfo', (event: IpcMainInvokeEvent, store: string) =>
@@ -120,6 +119,21 @@ ipcMain.handle('save-audio', async (event, arrayBuffer): Promise<string> => {
     });
   }
   return '';
+});
+
+ipcMain.handle('compress-audio', async (event, file): Promise<string> => {
+  const outfile = `${dataStore.getUserDataPath()}/${Shared.formattedNow()}_compressed.ogg`;
+  const cmd = `${ffMpegPath()}  -i "${file}" -vn -map_metadata -1 -ac 1 -c:a libopus -b:a 12k -application voip ${outfile}`;
+  // const cmd = `${ffMpegPath()}  -i "${file}"  -c:a libvorbis -q:a 4 ${outfile}`;
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err) => {
+      if (err) {
+        // eslint-disable-next-line prefer-promise-reject-errors
+        reject(`Failed to compress the file: ${err}`);
+      }
+      resolve(outfile);
+    });
+  });
 });
 
 if (process.env.NODE_ENV === 'production') {
