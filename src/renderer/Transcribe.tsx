@@ -732,10 +732,7 @@ export default function Component() {
             p: 4,
           }}
         >
-          <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <InputLabel id="demo-simple-select-helper-label">
-              Audio file path
-            </InputLabel>
+          <FormControl sx={{ m: 1, minWidth: '90%' }}>
             <TextField
               sx={{ margin: '20px' }}
               fullWidth
