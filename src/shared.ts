@@ -15,6 +15,7 @@ export default class Shared {
     STORE: 'StudyBuddy.AI',
     TRANSCRIBE_STORE: 'StudyBuddy.Transcripts.AI',
     OPENAI_KEY: 'openAiKey',
+    GROQ_KEY: 'groqKey',
     ANTHROPIC_KEY: 'anthropicKey',
     OPENAI_MODEL_LIST: 'openAiModelList',
     ANTHROPIC_MODEL_LIST: 'anthropicModelList',

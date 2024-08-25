@@ -6,6 +6,7 @@ import Transcribe from './Transcribe';
 import GuiShowcase from './GuiShowcase';
 import AiConfig from './AiConfig';
 import Help from './Help';
+import TranscriptManager from './TranscriptManager';
 
 export default function ItDoesntMatter() {
   const [value, setValue] = React.useState(0);
@@ -37,7 +38,8 @@ export default function ItDoesntMatter() {
       >
         {value === 0 && (
           <Box sx={{ p: 3 }}>
-            <Transcribe />
+            {/* <Transcribe /> */}
+            <TranscriptManager />
           </Box>
         )}
       </div>

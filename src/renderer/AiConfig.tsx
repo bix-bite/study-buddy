@@ -18,6 +18,7 @@ import TextareaAutosize from './TextAreaAutoSize';
 export default function AiConfig() {
   const [openAiKey, setOpenAiKey] = React.useState('');
   const [anthropicKey, setAnthropicKey] = React.useState('');
+  const [groqKey, setGroqKey] = React.useState('');
 
   const [openAiModel, setOpenAiModel] = React.useState('');
   const [anthropicModel, setAnthropicModel] = React.useState('');
@@ -64,6 +65,7 @@ export default function AiConfig() {
 
       await setterAlgo(Shared.keys.OPENAI_KEY, setOpenAiKey);
       await setterAlgo(Shared.keys.ANTHROPIC_KEY, setAnthropicKey);
+      await setterAlgo(Shared.keys.GROQ_KEY, setGroqKey);
       let list = await setterAlgo(
         Shared.keys.OPENAI_MODEL_LIST,
         setOpenAiModelList,
@@ -98,6 +100,7 @@ export default function AiConfig() {
         window.electron.ipcRenderer.StoreSet('StudyBuddy.AI', name, value);
       await saverAlgo(Shared.keys.OPENAI_KEY, openAiKey);
       await saverAlgo(Shared.keys.ANTHROPIC_KEY, anthropicKey);
+      await saverAlgo(Shared.keys.GROQ_KEY, groqKey);
       await saverAlgo(Shared.keys.OPENAI_MODEL_LIST, openAiModelList);
       await saverAlgo(Shared.keys.ANTHROPIC_MODEL_LIST, anthropicModelList);
       await saverAlgo(Shared.keys.OPENAI_MODEL, openAiModel);
@@ -186,6 +189,15 @@ export default function AiConfig() {
       </Grid>
       <Grid p={3} item xs={4}>
         <Stack spacing={2}>
+          <TextField
+            sx={{ margin: '20px' }}
+            fullWidth
+            name="groqKey"
+            label="Groq API Key:"
+            value={groqKey}
+            onChange={(e) => setGroqKey(e.target.value)}
+            variant="standard"
+          />
           <FormControl sx={{ m: 1, minWidth: 120 }}>
             <InputLabel id="demo-simple-select-helper-label">
               Preferred LLM
@@ -211,10 +223,15 @@ export default function AiConfig() {
       <Grid p={3} item xs={6}>
         <Stack spacing={2}>
           <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <Typography paddingY={3} variant='h5'>
+            <Typography paddingY={3} variant="h5">
               Summary Request Prompt
             </Typography>
-            <Typography marginBottom={2} variant="caption" display="block" gutterBottom>
+            <Typography
+              marginBottom={2}
+              variant="caption"
+              display="block"
+              gutterBottom
+            >
               Prompt message sent to LLM to create a summary of transcript text.
             </Typography>
             <TextareaAutosize
@@ -225,11 +242,17 @@ export default function AiConfig() {
             />
           </FormControl>
           <FormControl sx={{ m: 1, minWidth: 120 }}>
-            <Typography paddingY={3}  variant='h5'>
+            <Typography paddingY={3} variant="h5">
               Study Guide Request Prompt
             </Typography>
-            <Typography marginBottom={2} variant="caption" display="block" gutterBottom>
-              Prompt message sent to LLM to create a study guide of transcript text.
+            <Typography
+              marginBottom={2}
+              variant="caption"
+              display="block"
+              gutterBottom
+            >
+              Prompt message sent to LLM to create a study guide of transcript
+              text.
             </Typography>
             <TextareaAutosize
               value={studyGuidePrompt}

@@ -1,6 +1,8 @@
 import fs from 'fs';
 
 import OpenAI from 'openai';
+import Groq from 'groq-sdk';
+
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
@@ -66,6 +68,17 @@ export default class ChatService {
       throw new Error('Open AI key not set. Unable to call transcription API');
     }
     return openAiKey;
+  }
+
+  private groqKey(): string {
+    const groqKey = this.dataStore.get<string>(
+      Shared.keys.STORE,
+      Shared.keys.GROQ_KEY,
+    );
+    if (groqKey === undefined || groqKey.length === 0) {
+      throw new Error('Groq API key not set. Unable to call API');
+    }
+    return groqKey;
   }
 
   private openAiModelName(): string {
@@ -147,6 +160,21 @@ export default class ChatService {
         file: fs.createReadStream(audioFile),
         model: 'whisper-1',
         language: 'en', // this is optional but helps the model
+      });
+      return ChatService.success(transcript.text);
+    } catch (error) {
+      return ChatService.err(error);
+    }
+  }
+
+  async groqTranscribe(audioFile: string): Promise<IChatServiceResponse> {
+    try {
+      const apiKey = this.groqKey();
+      const groq = new Groq({ apiKey });
+      const transcript = await groq.audio.transcriptions.create({
+        file: fs.createReadStream(audioFile),
+        model: 'whisper-large-v3',
+        response_format: 'verbose_json',
       });
       return ChatService.success(transcript.text);
     } catch (error) {

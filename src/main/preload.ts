@@ -7,21 +7,14 @@ export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
-    transcribe: (
-      file: string,
-      openAiKey: string,
-    ): Promise<IChatServiceResponse> =>
-      ipcRenderer.invoke('transcribe', file, openAiKey),
-    transcriptSummry: (
-      transcript: string,
-      openAiKey: string,
-    ): Promise<IChatServiceResponse> =>
-      ipcRenderer.invoke('transcriptSummry', transcript, openAiKey),
-    transcriptStudyGuide: (
-      transcript: string,
-      openAiKey: string,
-    ): Promise<IChatServiceResponse> =>
-      ipcRenderer.invoke('transcriptStudyGuide', transcript, openAiKey),
+    transcribe: (file: string): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('transcribe', file),
+    groqTranscribe: (file: string): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('groq-transcribe', file),
+    transcriptSummary: (transcript: string): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('transcriptSummary', transcript),
+    transcriptStudyGuide: (transcript: string): Promise<IChatServiceResponse> =>
+      ipcRenderer.invoke('transcriptStudyGuide', transcript),
     saveAudio: (arrayBuffer: ArrayBuffer) =>
       ipcRenderer.invoke('save-audio', arrayBuffer),
     compressAudio: (audioFile: string) =>

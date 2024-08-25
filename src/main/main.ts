@@ -38,20 +38,28 @@ ipcMain.handle(
   async (
     event: IpcMainInvokeEvent,
     file: string,
-    openAiKey: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`ChatService Transcribe with key ${openAiKey}`);
+    console.log(`OpenAI ChatService Transcribe`);
     return chatSvc.transcribe(file);
   },
 );
 ipcMain.handle(
-  'transcriptSummry',
+  'groq-transcribe',
+  async (
+    event: IpcMainInvokeEvent,
+    file: string,
+  ): Promise<IChatServiceResponse> => {
+    console.log(`Groq ChatService Transcribe`);
+    return chatSvc.groqTranscribe(file);
+  },
+);
+ipcMain.handle(
+  'transcriptSummary',
   async (
     event: IpcMainInvokeEvent,
     transcript: string,
-    openAiKey: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`ChatService transcriptSummry with key ${openAiKey}`);
+    console.log(`ChatService transcript summary`);
     return chatSvc.transcriptSummary(transcript);
   },
 );
@@ -61,9 +69,8 @@ ipcMain.handle(
   async (
     event: IpcMainInvokeEvent,
     transcript: string,
-    openAiKey: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`ChatService transcriptSummry with key ${openAiKey}`);
+    console.log(`ChatService study guide`);
     return chatSvc.transcriptStudyGuide(transcript);
   },
 );
@@ -72,9 +79,7 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, store: string, key: string) =>
     dataStore.get(store, key),
 );
-ipcMain.handle('data-path', () =>
-  dataStore.getUserDataPath(),
-);
+ipcMain.handle('data-path', () => dataStore.getUserDataPath());
 
 ipcMain.handle('store-fileinfo', (event: IpcMainInvokeEvent, store: string) =>
   dataStore.getFileInfo(store),

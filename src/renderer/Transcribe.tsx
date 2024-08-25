@@ -23,7 +23,6 @@ import {
   LinearProgress,
   Tooltip,
   FormControl,
-  InputLabel,
   TextField,
 } from '@mui/material';
 
@@ -36,6 +35,8 @@ import {
   EditNoteTwoTone,
   NoteAltTwoTone,
   TranscribeTwoTone,
+  ArrowCircleRightTwoTone,
+  AddLocationTwoTone,
 } from '@mui/icons-material';
 import Shared from '../shared';
 import { IChatServiceResponse } from '../main/backend/ChatService';
@@ -99,32 +100,24 @@ export default function Component() {
 
   // toggles if markdown or editable textbox is shown in popup view of a field
   const [markdown, setMarkdown] = React.useState(false);
-  const [openAiKey, setOpenAiKey] = React.useState<string | undefined>(
-    undefined,
-  );
+  const [groqKey, setGroqKey] = React.useState<string | undefined>(undefined);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(8);
-
   const [requestTranscript, setRequestTranscript] = React.useState<
     IInstance | undefined
   >(undefined);
-
   const [requestCompress, setRequestCompress] = React.useState<
     IInstance | undefined
   >(undefined);
-
   const [requestSummary, setRequestSummary] = React.useState<
     IInstance | undefined
   >(undefined);
-
   const [requestStudyGuide, setRequestStudyGuide] = React.useState<
     IInstance | undefined
   >(undefined);
-
   const [editingItem, setEditingItem] = React.useState<IInstance | undefined>(
     undefined,
   );
-
   const [editText, setEditText] = React.useState<
     { property: string; text: string } | undefined
   >(undefined);
@@ -139,14 +132,26 @@ export default function Component() {
         ? `${text.substring(0, max - 3)}...`
         : text;
   };
+
+  const endEditProperty = (update: boolean) => {
+    if (update && editingItem !== undefined && editText !== undefined) {
+      const toUpdate = instanceList.find((x) => x.id === editingItem.id);
+      if (toUpdate) {
+        (toUpdate as any)[editText.property] = editText.text;
+        setInstanceList([...instanceList]);
+        setUpdateFlag(updateFlag + 1);
+      }
+    }
+  };
+
   // initial event
   React.useEffect(() => {
     const getList = async () => {
       const key = await window.electron.ipcRenderer.StoreGet(
         Shared.keys.STORE,
-        Shared.keys.OPENAI_KEY,
+        Shared.keys.GROQ_KEY,
       );
-      setOpenAiKey(key);
+      setGroqKey(key);
       const retrieve = await window.electron.ipcRenderer.StoreGet(
         Shared.keys.TRANSCRIBE_STORE,
         'TranscribeList',
@@ -184,6 +189,17 @@ export default function Component() {
     }
   }, [addManual]);
 
+  // Editing item change
+  React.useEffect(() => {
+    if (editingItem !== undefined) {
+      const propName = editText ? editText.property : 'note';
+      setEditText({
+        property: propName,
+        text: (editingItem as any)[propName],
+      });
+    }
+  }, [editingItem]);
+
   const applyAudioFilePath = () => {
     if (addAudioFilePath !== undefined) {
       const manualItem: IInstance = {
@@ -210,7 +226,7 @@ export default function Component() {
   }, [sortedList, page, rowsPerPage]);
 
   const genericAiTranscriptProcessCall = (
-    call: (p: string, openAiKey: string) => Promise<IChatServiceResponse>,
+    call: (p: string) => Promise<IChatServiceResponse>,
     propToSend: string,
     propToUpdate: string,
     instance: IInstance | undefined,
@@ -218,7 +234,7 @@ export default function Component() {
   ) => {
     const asyncCall = async () => {
       if (instance !== undefined) {
-        const response = await call((instance as any)[propToSend], openAiKey);
+        const response = await call((instance as any)[propToSend]);
 
         setAlertCloudActivity(undefined);
         if (response.status === 'FAILURE') {
@@ -235,17 +251,12 @@ export default function Component() {
     };
 
     if (instance !== undefined) {
-      if (openAiKey === undefined || openAiKey === '') {
-        setAlertNoKey(true);
-      } else {
-        setAlertCloudActivity(cloudMessage);
-        asyncCall();
-      }
+      setAlertCloudActivity(cloudMessage);
+      asyncCall();
     }
   };
 
   // compress on request
-  // transcribe on request
   React.useEffect(() => {
     const asyncCall = async () => {
       if (
@@ -274,19 +285,26 @@ export default function Component() {
 
   // transcribe on request
   React.useEffect(() => {
+    let LLM = 'Open AI';
+    let call: (p: string) => Promise<IChatServiceResponse> =
+      window.electron.ipcRenderer.transcribe;
+    if (groqKey) {
+      call = window.electron.ipcRenderer.groqTranscribe;
+      LLM = 'Groq';
+    }
     genericAiTranscriptProcessCall(
-      window.electron.ipcRenderer.transcribe,
+      call,
       'file',
       'transcript',
       requestTranscript,
-      'transcribing audio file remotely. Long audio files can take a while',
+      `transcribing audio file remotely with ${LLM}. Long audio files can take a while`,
     );
   }, [requestTranscript]);
 
   // summary on request
   React.useEffect(() => {
     genericAiTranscriptProcessCall(
-      window.electron.ipcRenderer.transcriptSummry,
+      window.electron.ipcRenderer.transcriptSummary,
       'transcript',
       'AISummary',
       requestSummary,
@@ -403,18 +421,6 @@ export default function Component() {
     setEditText({ property: prop, text: (item as any)[prop] });
   };
 
-  const endEditProperty = (update: boolean) => {
-    if (update && editingItem !== undefined && editText !== undefined) {
-      const toUpdate = instanceList.find((x) => x.id === editingItem.id);
-      if (toUpdate) {
-        (toUpdate as any)[editText.property] = editText.text;
-        setInstanceList([...instanceList]);
-        setUpdateFlag(updateFlag + 1);
-      }
-    }
-    setEditText(undefined);
-  };
-
   return (
     <>
       <Stack spacing={2} direction="row">
@@ -459,14 +465,14 @@ export default function Component() {
       <h4>{msg}</h4>
       <hr />
       <Grid container>
-        <Grid item xs={12}>
+        <Grid item xs={3}>
           <Box sx={{ width: '100%' }}>
             <Paper sx={{ width: '100%', mb: 2 }}>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <StyledTableRow>
-                      <TableCell colSpan={2}>File</TableCell>
+                      <TableCell colSpan={3}>File</TableCell>
                       <TableCell colSpan={2}>Note</TableCell>
                       <TableCell>transcript</TableCell>
                       <TableCell>AI Summary</TableCell>
@@ -486,6 +492,23 @@ export default function Component() {
                           // selected={isItemSelected}
                           sx={{ cursor: 'pointer' }}
                         >
+                          <TableCell>
+                            <Tooltip arrow title="View Item">
+                              <Button
+                                disabled={row === editingItem}
+                                sx={{ marginX: '0px' }}
+                                onClick={() => setEditingItem(row)}
+                                variant="text"
+                              >
+                                {row === editingItem && (
+                                  <AddLocationTwoTone color="action" />
+                                )}
+                                {row !== editingItem && (
+                                  <ArrowCircleRightTwoTone />
+                                )}
+                              </Button>
+                            </Tooltip>
+                          </TableCell>
                           <TableCell>
                             {row.file
                               .split('\\')
@@ -710,7 +733,97 @@ export default function Component() {
             </Paper>
           </Box>
         </Grid>
+        <Grid item xs={9}>
+          <Grid container>
+            <Grid item xs={12}>
+              {editingItem !== undefined && (
+                <Stack spacing={2} direction="row">
+                  <Button
+                    onClick={() => editProperty(editingItem, 'note')}
+                    variant={
+                      editText?.property === 'note' ? 'outlined' : 'text'
+                    }
+                  >
+                    Notes
+                  </Button>
+                  <Button
+                    onClick={() => editProperty(editingItem, 'transcript')}
+                    variant={
+                      editText?.property === 'transcript' ? 'outlined' : 'text'
+                    }
+                  >
+                    Transcript
+                  </Button>
+                  <Button
+                    onClick={() => editProperty(editingItem, 'AISummary')}
+                    variant={
+                      editText?.property === 'AISummary' ? 'outlined' : 'text'
+                    }
+                  >
+                    Summary
+                  </Button>
+                  <Button
+                    onClick={() => editProperty(editingItem, 'AIStudyGuide')}
+                    variant={
+                      editText?.property === 'AIStudyGuide'
+                        ? 'outlined'
+                        : 'text'
+                    }
+                  >
+                    Study Guide
+                  </Button>
+                </Stack>
+              )}
+            </Grid>
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  height: '80vh',
+                  width: '100%',
+                  bgcolor: 'background.paper',
+                  border: '2px solid #000',
+                  m: 1,
+                }}
+              >
+                <h4>
+                  Edit {editText?.property}{' '}
+                  <Button
+                    sx={{ marginLeft: '1px' }}
+                    onClick={() => setMarkdown(!markdown)}
+                  >
+                    Toggle Markdown
+                  </Button>
+                  {!markdown && (
+                    <Button onClick={() => endEditProperty(true)}>Save</Button>
+                  )}
+                </h4>
+
+                {!markdown && editText && (
+                  <TextareaAutosize
+                    value={editText.text || ''}
+                    minRows={10}
+                    maxRows={30}
+                    onChange={(e) => textAreaChanged(e)}
+                  />
+                )}
+                {markdown && editText && (
+                  <Box
+                    sx={{
+                      width: '95%',
+                      maxWidth: '95%',
+                      maxHeight: '80%',
+                      overflow: 'auto',
+                    }}
+                  >
+                    <Markdown>{editText.text}</Markdown>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </Grid>
       </Grid>
+      {/* modal for manually adding existing audio */}
       <Modal open={addAudioFilePath !== undefined}>
         <Box
           sx={{
@@ -740,11 +853,11 @@ export default function Component() {
             <Button onClick={() => setAddAudioFilePath(undefined)}>
               Cancel
             </Button>
-            <Button onClick={() => applyAudioFilePath(true)}>Save</Button>
+            <Button onClick={() => applyAudioFilePath()}>Save</Button>
           </DialogActions>
         </Box>
       </Modal>
-      <Modal open={editText !== undefined}>
+      {/* <Modal open={editText !== undefined}>
         <Box
           sx={{
             position: 'relative',
@@ -806,7 +919,7 @@ export default function Component() {
             )}
           </DialogActions>
         </Box>
-      </Modal>
+      </Modal> */}
       <Snackbar open={alertCloudActivity !== undefined}>
         <Alert severity="success" variant="filled" sx={{ width: '100%' }}>
           {alertCloudActivity}
@@ -835,4 +948,6 @@ export default function Component() {
       </Snackbar>
     </>
   );
+
+
 }
