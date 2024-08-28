@@ -30,6 +30,7 @@ import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import {
   CancelTwoTone,
   CompressTwoTone,
+  FileOpenTwoTone,
   ImportExportTwoTone,
   MusicNoteTwoTone,
   RecordVoiceOverTwoTone,
@@ -128,6 +129,8 @@ export default function Component() {
 
   const [readonly, setReadonly] = React.useState(false);
   const [showCompress, setShowCompress] = React.useState(false);
+  const [showOpenFile, setShowOpenFile] = React.useState(false);
+  const [showNoExist, setShowNoExist] = React.useState(false);
 
   // live transcript related state
   const [streamChunk, setStreamChunk] = React.useState<string | undefined>();
@@ -219,40 +222,66 @@ export default function Component() {
     setUpdateFlag(updateFlag + 1);
   }
 
+  const isFilePath = (text: string): bool => {
+    // Check if the string has a file extension
+    const fileExtensionPattern = /\.[0-9a-z]+$/i;
+
+    // Check if the string has directory separators (assuming Unix and Windows paths)
+    const hasDirectorySeparators = text.includes('/') || text.includes('\\');
+
+    // Basic check: a string that contains directory separators and ends with a file extension
+    return hasDirectorySeparators && fileExtensionPattern.test(text);
+  };
+
   // load up editable property text of selected instance.  This is
   // what can be edited by user and what is displayed in mardkwon
   React.useEffect(() => {
-    if (selectedInstance) {
-      setDirty(undefined);
-      setReadonly(false);
-      setShowCompress(false);
-      switch (propertyTab) {
-        case 'file':
-          setSelectedInstanceText(selectedInstance.file);
-          setReadonly(true);
-          if (
-            selectedInstance.file?.length > 0 &&
-            selectedInstance.file.endsWith('mp3')
-          ) {
-            setShowCompress(true);
-          }
-          break;
-        case 'name':
-          setSelectedInstanceText(selectedInstance.name);
-          break;
-        case 'transcript':
-          setSelectedInstanceText(selectedInstance.transcript);
-          break;
-        case 'AISummary':
-          setSelectedInstanceText(selectedInstance.AISummary);
-          break;
-        case 'AIStudyGuide':
-          setSelectedInstanceText(selectedInstance.AIStudyGuide);
-          break;
-        default: // note
-          setSelectedInstanceText(selectedInstance.note);
+    const asyncMethod = async () => {
+      if (selectedInstance) {
+        setDirty(undefined);
+        setReadonly(false);
+        setShowCompress(false);
+        setShowOpenFile(false);
+        setShowNoExist(false);
+        switch (propertyTab) {
+          case 'file':
+            setSelectedInstanceText(selectedInstance.file);
+            setReadonly(true);
+            if (selectedInstance.file?.length > 0) {
+              if (isFilePath(selectedInstance.file)) {
+                const viable = await window.electron.ipcRenderer.fileExists(
+                  selectedInstance.file,
+                );
+
+                if (viable) {
+                  setShowOpenFile(true);
+                } else {
+                  setShowNoExist(true);
+                }
+              }
+              if (selectedInstance.file.endsWith('mp3')) {
+                setShowCompress(true);
+              }
+            }
+            break;
+          case 'name':
+            setSelectedInstanceText(selectedInstance.name);
+            break;
+          case 'transcript':
+            setSelectedInstanceText(selectedInstance.transcript);
+            break;
+          case 'AISummary':
+            setSelectedInstanceText(selectedInstance.AISummary);
+            break;
+          case 'AIStudyGuide':
+            setSelectedInstanceText(selectedInstance.AIStudyGuide);
+            break;
+          default: // note
+            setSelectedInstanceText(selectedInstance.note);
+        }
       }
-    }
+    };
+    asyncMethod();
   }, [propertyTab, selectedInstance]);
 
   // initial event
@@ -788,8 +817,16 @@ export default function Component() {
                 </Box>
 
                 <Grid padding={1} container>
-                  <Grid item xs={1} />
-                  <Grid padding={1} item xs={11}>
+                  {showNoExist && (
+                    <Alert
+                      severity="warning"
+                      variant="filled"
+                      sx={{ width: '100%' }}
+                    >
+                      It looks like this file doesn&apos;t actually exist
+                    </Alert>
+                  )}
+                  <Grid padding={1} item xs={12}>
                     {markdownDisplayFlag && !readonly && (
                       <Button
                         sx={{ marginRight: '10px' }}
@@ -817,7 +854,7 @@ export default function Component() {
                         title="Compress audio to save file space before sending off for transcription"
                       >
                         <Button
-                          sx={{ marginLeft: '1px' }}
+                          sx={{ marginX: '1em' }}
                           onClick={() => setRequestCompress(selectedInstance)}
                           variant="outlined"
                         >
@@ -825,7 +862,21 @@ export default function Component() {
                         </Button>
                       </Tooltip>
                     )}
-
+                    {showOpenFile && selectedInstanceText && (
+                      <Tooltip arrow title="Open file">
+                        <Button
+                          sx={{ marginLeft: '1px' }}
+                          onClick={() =>
+                            window.electron.ipcRenderer.openFIle(
+                              selectedInstanceText,
+                            )
+                          }
+                          variant="outlined"
+                        >
+                          <FileOpenTwoTone />
+                        </Button>
+                      </Tooltip>
+                    )}
                     {dirty !== undefined && (
                       <>
                         <Button

@@ -54,6 +54,8 @@ streamingSvc.sessionError$.subscribe((err) =>
   mainWindow?.webContents.send('session-error', err),
 );
 
+
+
 ipcMain.handle('stream-start', async (): Promise<string> => {
   dataStore.sessionLog(['streamingSvc.start()']);
   return streamingSvc.start();
@@ -119,6 +121,14 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, store: string, key: string) =>
     dataStore.delete(store, key),
 );
+
+ipcMain.handle('open-file', (event: IpcMainInvokeEvent, filePath: string) => {
+  shell.openPath(filePath);
+});
+ipcMain.handle('file-exists', (event: IpcMainInvokeEvent, filePath: string) => {
+  return fs.existsSync(filePath);
+});
+
 ipcMain.handle(
   'store-set',
   (event: IpcMainInvokeEvent, store: string, key: string, value: any) =>

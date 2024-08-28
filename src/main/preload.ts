@@ -17,6 +17,10 @@ const electronHandler = {
       ),
     streamStart: (): Promise<string> => ipcRenderer.invoke('stream-start'),
     streamStop: (): Promise<string> => ipcRenderer.invoke('stream-stop'),
+    openFIle: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
+    fileExists: (filePath: string): Promise<boolean> =>
+      ipcRenderer.invoke('file-exists', filePath),
+
     transcribe: (file: string): Promise<IChatServiceResponse> =>
       ipcRenderer.invoke('transcribe', file),
     groqTranscribe: (file: string): Promise<IChatServiceResponse> =>
