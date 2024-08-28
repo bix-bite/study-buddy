@@ -19,6 +19,7 @@ export default function AiConfig() {
   const [openAiKey, setOpenAiKey] = React.useState('');
   const [anthropicKey, setAnthropicKey] = React.useState('');
   const [groqKey, setGroqKey] = React.useState('');
+  const [assemblyAiKey, setAassemblyAiKey] = React.useState('');
 
   const [openAiModel, setOpenAiModel] = React.useState('');
   const [anthropicModel, setAnthropicModel] = React.useState('');
@@ -66,6 +67,7 @@ export default function AiConfig() {
       await setterAlgo(Shared.keys.OPENAI_KEY, setOpenAiKey);
       await setterAlgo(Shared.keys.ANTHROPIC_KEY, setAnthropicKey);
       await setterAlgo(Shared.keys.GROQ_KEY, setGroqKey);
+      await setterAlgo(Shared.keys.ASSEMBLYAI_KEY, setAassemblyAiKey);
       let list = await setterAlgo(
         Shared.keys.OPENAI_MODEL_LIST,
         setOpenAiModelList,
@@ -101,6 +103,7 @@ export default function AiConfig() {
       await saverAlgo(Shared.keys.OPENAI_KEY, openAiKey);
       await saverAlgo(Shared.keys.ANTHROPIC_KEY, anthropicKey);
       await saverAlgo(Shared.keys.GROQ_KEY, groqKey);
+      await saverAlgo(Shared.keys.ASSEMBLYAI_KEY, assemblyAiKey);
       await saverAlgo(Shared.keys.OPENAI_MODEL_LIST, openAiModelList);
       await saverAlgo(Shared.keys.ANTHROPIC_MODEL_LIST, anthropicModelList);
       await saverAlgo(Shared.keys.OPENAI_MODEL, openAiModel);
@@ -196,6 +199,15 @@ export default function AiConfig() {
             label="Groq API Key:"
             value={groqKey}
             onChange={(e) => setGroqKey(e.target.value)}
+            variant="standard"
+          />
+          <TextField
+            sx={{ margin: '20px' }}
+            fullWidth
+            name="groqKey"
+            label="Assembly AI API Key:"
+            value={assemblyAiKey}
+            onChange={(e) => setAassemblyAiKey(e.target.value)}
             variant="standard"
           />
           <FormControl sx={{ m: 1, minWidth: 120 }}>

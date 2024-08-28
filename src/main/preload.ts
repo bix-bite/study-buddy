@@ -7,6 +7,16 @@ export type Channels = 'ipc-example';
 
 const electronHandler = {
   ipcRenderer: {
+    onPartialTranscript: (callback: (transcript: string) => void) =>
+      ipcRenderer.on('partial-transcript', (_event, value: string) =>
+        callback(value),
+      ),
+    onFinalTranscript: (callback: (transcript: string) => void) =>
+      ipcRenderer.on('final-transcript', (_event, value: string) =>
+        callback(value),
+      ),
+    streamStart: (): Promise<string> => ipcRenderer.invoke('stream-start'),
+    streamStop: (): Promise<string> => ipcRenderer.invoke('stream-stop'),
     transcribe: (file: string): Promise<IChatServiceResponse> =>
       ipcRenderer.invoke('transcribe', file),
     groqTranscribe: (file: string): Promise<IChatServiceResponse> =>

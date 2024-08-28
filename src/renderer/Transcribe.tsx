@@ -146,6 +146,10 @@ export default function Component() {
 
   // initial event
   React.useEffect(() => {
+    window.electron.ipcRenderer.onPartialTranscript((transcript) => {
+      console.log(transcript);
+    });
+
     const getList = async () => {
       const key = await window.electron.ipcRenderer.StoreGet(
         Shared.keys.STORE,

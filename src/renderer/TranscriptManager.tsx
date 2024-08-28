@@ -17,30 +17,34 @@ import TabList from '@mui/lab/TabList';
 import Tab from '@mui/material/Tab';
 import Button from '@mui/material/Button';
 import Markdown from 'react-markdown';
-
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
-import TextareaAutosize from './TextAreaAutoSize';
-import { IChatServiceResponse } from '../main/backend/ChatService';
-import Shared from '../shared';
 import Modal from '@mui/material/Modal';
 import FormControl from '@mui/material/FormControl';
 import TextField from '@mui/material/TextField';
 import DialogActions from '@mui/material/DialogActions';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+
 import {
   CancelTwoTone,
+  CompressTwoTone,
+  ImportExportTwoTone,
   MusicNoteTwoTone,
   RecordVoiceOverTwoTone,
   StopCircleOutlined,
+  StreamTwoTone,
   TranscribeTwoTone,
 } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
+import TextareaAutosize from './TextAreaAutoSize';
+import { IChatServiceResponse } from '../main/backend/ChatService';
+import Shared from '../shared';
 
 interface IInstance {
   id: string;
+  name: string;
   file: string;
   note: string;
   transcript: string;
@@ -61,32 +65,89 @@ const StyledTableRow = styled(TableRow)(() => ({
   },
 }));
 
-type propertyTypes = 'note' | 'transcript' | 'AISummary' | 'AIStudyGuide';
+type propertyTypes =
+  | 'name'
+  | 'file'
+  | 'note'
+  | 'transcript'
+  | 'AISummary'
+  | 'AIStudyGuide';
+
+const combineText = (
+  startText: string | undefined,
+  endText: string | undefined,
+): string => {
+  const start = startText === undefined ? '' : startText;
+  const end = endText === undefined ? '' : endText;
+
+  return end.length > 0 && start.length > 0
+    ? `${start}\n\n${end}`
+    : `${start}${end}`;
+};
+
+const ModalBox = React.forwardRef(
+  (props: { children: React.ReactNode }, ref) => (
+    <Box
+      sx={{
+        position: 'relative',
+        top: '10vh',
+        height: '80vh',
+        left: '10vw',
+        width: '80vw',
+        bgcolor: 'background.paper',
+        border: '2px solid #000',
+        boxShadow: (theme) => theme.shadows[5],
+        p: 4,
+      }}
+    >
+      {props.children}
+    </Box>
+  ),
+);
 
 export default function Component() {
   const [groqKey, setGroqKey] = React.useState<string | undefined>(undefined);
 
+  // list and table state
   const [instanceList, setInstanceList] = React.useState<IInstance[]>([]);
   const [sortedList, setSortedList] = React.useState<IInstance[]>([]);
   const [visibleList, setVisibleList] = React.useState<IInstance[]>([]);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(8);
 
-  const [propertyTab, setPropertyTab] = React.useState<propertyTypes>('note');
-
+  // instance and property state
   const [selectedInstance, setSelectedInstance] = React.useState<
     IInstance | undefined
   >();
-
+  const [propertyTab, setPropertyTab] = React.useState<propertyTypes>('note');
   const [selectedInstanceText, setSelectedInstanceText] = React.useState<
     string | undefined
   >();
   const [dirty, setDirty] = React.useState<propertyTypes | undefined>();
-
   const [updateFlag, setUpdateFlag] = React.useState(0);
 
-  const [markdown, setMarkdown] = React.useState(false);
+  const [readonly, setReadonly] = React.useState(false);
+  const [showCompress, setShowCompress] = React.useState(false);
 
+  // live transcript related state
+  const [streamChunk, setStreamChunk] = React.useState<string | undefined>();
+  const [finalChunk, setFinalChunk] = React.useState<string | undefined>();
+  const [streamingText, setStreamingText] = React.useState<
+    string | undefined
+  >();
+  const [streamingTextDisplay, setStreamingTextDisplay] = React.useState<
+    string | undefined
+  >();
+  const [requestLiveTranscription, setRequestLiveTranscription] =
+    React.useState<string | undefined>(undefined);
+  const [streamingState, setStreamingState] = React.useState<
+    string | undefined
+  >(undefined);
+  const [streamingMessage, setStreamingMessage] = React.useState<
+    string | undefined
+  >(undefined);
+
+  const [markdownDisplayFlag, setMarkdownDisplayFlag] = React.useState(true);
   const [alertCloudActivity, setAlertCloudActivity] = React.useState<
     string | undefined
   >(undefined);
@@ -94,10 +155,14 @@ export default function Component() {
     string | undefined
   >(undefined);
 
+  // audio recording state
   const [requestAudioSession, setRequestAudioSession] = React.useState<
     string | undefined
   >(undefined);
   const [recordingState, setRecordingState] = React.useState<
+    string | undefined
+  >(undefined);
+  const [recordingMessage, setRecordingMessage] = React.useState<
     string | undefined
   >(undefined);
   const [mediaRecorder, setMediaRecorder] = React.useState<
@@ -105,11 +170,6 @@ export default function Component() {
   >(undefined);
   // accumulates blobs of audio data as media recorder is recording
   const [audioChunks, setAudioChunks] = React.useState<Blob[]>([]);
-
-  const [recordingMessage, setRecordingMessage] = React.useState<
-    string | undefined
-  >(undefined);
-
   // what audio chunks are converted to after recording is finished
   // this is the data that is sent to the backend and saved as an mp3 file,
   // which can then be uploaded to whisper ai for transcription
@@ -117,21 +177,69 @@ export default function Component() {
     undefined,
   );
 
+  // manual audio path state
   const [addAudioFilePath, setAddAudioFilePath] = React.useState<
     string | undefined
   >(undefined);
 
-  const handleTabChange = (
+  const [requestCompress, setRequestCompress] = React.useState<
+    IInstance | undefined
+  >(undefined);
+
+  const handlePropertyTabChange = (
     event: React.SyntheticEvent,
     newValue: propertyTypes,
   ) => {
     setPropertyTab(newValue);
   };
 
+  // user requested to paste in their own transcript text.  Create a record, select it,
+  // show it to user with transcript text box ready for them to paste in
+  function createManualTranscriptEntry(
+    file: string,
+    transcript: string,
+    noteText: string,
+    name: string,
+  ) {
+    const manualItem: IInstance = {
+      id: `${Shared.formattedNow()}_manual`,
+      file,
+      transcript,
+      name,
+      AIStudyGuide: '',
+      AISummary: '',
+      note: noteText,
+    };
+
+    setInstanceList([...instanceList, manualItem]);
+    setMarkdownDisplayFlag(false);
+    setSelectedInstance(manualItem);
+    setPropertyTab('transcript');
+    setMarkdownDisplayFlag(false);
+    setUpdateFlag(updateFlag + 1);
+  }
+
+  // load up editable property text of selected instance.  This is
+  // what can be edited by user and what is displayed in mardkwon
   React.useEffect(() => {
     if (selectedInstance) {
       setDirty(undefined);
+      setReadonly(false);
+      setShowCompress(false);
       switch (propertyTab) {
+        case 'file':
+          setSelectedInstanceText(selectedInstance.file);
+          setReadonly(true);
+          if (
+            selectedInstance.file?.length > 0 &&
+            selectedInstance.file.endsWith('mp3')
+          ) {
+            setShowCompress(true);
+          }
+          break;
+        case 'name':
+          setSelectedInstanceText(selectedInstance.name);
+          break;
         case 'transcript':
           setSelectedInstanceText(selectedInstance.transcript);
           break;
@@ -149,6 +257,19 @@ export default function Component() {
 
   // initial event
   React.useEffect(() => {
+    // initiilize listeners for live transcript events
+    window.electron.ipcRenderer.onPartialTranscript((transcript) =>
+      setStreamChunk(transcript),
+    );
+    window.electron.ipcRenderer.onFinalTranscript((transcript) =>
+      setFinalChunk(transcript),
+    );
+
+    // get a few things from data store, mainly the transcript list that
+    // is the basis of the whole compoennet. the Groq key is used to
+    // determine which recorded transcription api to use.  Groq's whisper
+    // api is faster and a little cheaper than Open AI, so if the key is
+    // there, we wil use Groq for that feature.
     const getList = async () => {
       const key = await window.electron.ipcRenderer.StoreGet(
         Shared.keys.STORE,
@@ -159,6 +280,17 @@ export default function Component() {
         Shared.keys.TRANSCRIBE_STORE,
         'TranscribeList',
       );
+      if (retrieve) {
+        (retrieve as IInstance[]).forEach((instance) => {
+          if (instance.name === undefined) {
+            instance.name =
+              instance.note?.length > 0 ? instance.note : instance.file;
+            if (instance.name === undefined) {
+              instance.name = '';
+            }
+          }
+        });
+      }
       setInstanceList(retrieve || []);
     };
     getList();
@@ -188,6 +320,36 @@ export default function Component() {
     }
   }, [updateFlag]);
 
+  const messagesEndRef = React.useRef<null | HTMLDivElement>(null);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // some live transcript text has been received.  Update the display text
+  React.useEffect(() => {
+    const updated = combineText(streamingText, streamChunk);
+    setStreamingTextDisplay(updated);
+  }, [streamChunk]);
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [streamingTextDisplay]);
+
+  // some final transcript text has been received.  Update the display text and
+  // the overall text. The live transcript API returns 'final chunks' of text,
+  // then starts listening and transcibing the next autio section, trying to
+  // segment on pauses. We have to concatenate these final chunks as they are
+  // produced to keep a record of the entire transcribed text in the streamingText
+  // state.
+  React.useEffect(() => {
+    const updated = combineText(streamingText, finalChunk);
+    setStreamingText(updated);
+    setStreamingTextDisplay(updated);
+  }, [finalChunk]);
+
+  // User has changed some instance property text, but wants to discard.  We
+  // read the original property value back into instance text, ovverriding their
+  // changes
   const discardChangedProperty = () => {
     if (selectedInstance !== undefined && selectedInstanceText !== undefined) {
       const toRestore = instanceList.find((x) => x.id === selectedInstance.id);
@@ -199,6 +361,8 @@ export default function Component() {
     }
   };
 
+  // user has changed some instances property text and requested to save.  We
+  // update the original property text and save to data store
   const saveChangedProperty = () => {
     if (selectedInstance !== undefined && selectedInstanceText !== undefined) {
       const toUpdate = instanceList.find((x) => x.id === selectedInstance.id);
@@ -211,6 +375,12 @@ export default function Component() {
     }
   };
 
+  // Config object for each property of an instance and what to call to
+  // get an AI update, what property it reads of an instance to send to
+  // the AI, which property it writes the AI response to, and what message
+  // to show the user while the AI is generating the content. Used by
+  // genericAiTranscriptProcessCall() through generateActionForProperty
+  // mapped to the name of each property tab
   const propertyTypeList: {
     [index: string]: { actionConfig: IActionConfiguration };
   } = {
@@ -244,6 +414,8 @@ export default function Component() {
     },
   };
 
+  // handles AI call and update of each property that can be filled in
+  // by an AI request
   const genericAiTranscriptProcessCall = (
     call: (p: string) => Promise<IChatServiceResponse>,
     propToSend: string,
@@ -282,6 +454,8 @@ export default function Component() {
     }
   };
 
+  // calls the generic AI call based on configuration
+  // for the current property being looked at by the user
   const generateActionForProperty = () => {
     const cfg = propertyTypeList[propertyTab];
 
@@ -296,7 +470,7 @@ export default function Component() {
     }
   };
 
-  // user state request change
+  // user recording state
   React.useEffect(() => {
     const checkstate = async () => {
       if (recordingState === 'start') {
@@ -310,6 +484,7 @@ export default function Component() {
         if (mediaRecorder) {
           mediaRecorder.stop();
         }
+        setRequestAudioSession(undefined);
       } else if (recordingState === 'cancel') {
         if (mediaRecorder) {
           mediaRecorder.stop();
@@ -321,7 +496,16 @@ export default function Component() {
     checkstate();
   }, [recordingState]);
 
-  // listen for media recorder data/end events
+  // user choice to start/stop/cancel microphone recording
+  const handleRecordingState = (
+    event: React.SyntheticEvent,
+    newValue: string,
+  ) => {
+    setRecordingState(newValue);
+  };
+
+  // listen for media recorder data/end events, part of
+  // process for recording audio from microphone
   React.useEffect(() => {
     if (mediaRecorder) {
       setAudioChunks([]);
@@ -349,23 +533,21 @@ export default function Component() {
     }
   }, [mediaRecorder]);
 
+  // user request to paste in their own transcript and
+  // create a new record instead of having one generated
+  // from an audio recording
   const setRequestManualTranscript = () => {
-    const manualItem: IInstance = {
-      id: `${Shared.formattedNow()}_manual`,
-      file: 'PASTED TRANSCRIPT',
-      transcript: 'paste here',
-      AIStudyGuide: '',
-      AISummary: '',
-      note: 'Manually imported transcript',
-    };
-
-    setInstanceList([...instanceList, manualItem]);
-    setMarkdown(false);
-    setSelectedInstance(manualItem);
-    setPropertyTab('transcript');
-    setMarkdown(false);
+    createManualTranscriptEntry(
+      'PASTED TRANSCRIPT',
+      'paste here',
+      'Manually imported transcript',
+      'Manually imported transcript',
+    );
   };
-  // save audio as array buffer to file
+
+  // save audio as array buffer to file. Last step after
+  // recording audio through the microphone, generates a clean
+  // new record ready to be transcribed, summarized, etc.
   React.useEffect(() => {
     const saveFile = async () => {
       const fileName = await window.electron.ipcRenderer.saveAudio(
@@ -381,6 +563,7 @@ export default function Component() {
           note: '',
           transcript: '',
           AIStudyGuide: '',
+          name: fileName,
         },
       ]);
       setUpdateFlag(updateFlag + 1);
@@ -395,31 +578,96 @@ export default function Component() {
     }
   }, [arrayBuffer]);
 
-  const handleRecordingState = (
-    event: React.SyntheticEvent,
-    newValue: string,
-  ) => {
-    setRecordingState(newValue);
+  // user choice to start/stop/cancel streaming transcription process
+  const handleStreamingState = (newValue: string) => {
+    setStreamingState(newValue);
+  };
+
+  // User has request a live transcript. Initialize all the
+  // related state variables
+  React.useEffect(() => {
+    setStreamChunk(undefined);
+    setStreamingText(undefined);
+    setStreamingTextDisplay(undefined);
+  }, [requestLiveTranscription]);
+
+  // user streamed transcript state
+  React.useEffect(() => {
+    const checkstate = async () => {
+      if (streamingState === 'start') {
+        setStreamingMessage('Transcribing audio');
+        const status = await window.electron.ipcRenderer.streamStart();
+        setStreamingMessage(status);
+      } else if (streamingState === 'stop') {
+        setStreamingMessage('Transcription stopped.');
+        await window.electron.ipcRenderer.streamStop();
+      } else if (streamingState === 'cancel') {
+        setStreamingMessage('');
+        await window.electron.ipcRenderer.streamStop();
+        setRequestLiveTranscription(undefined);
+      }
+    };
+    checkstate();
+  }, [streamingState]);
+
+  React.useEffect(() => {
+    if (requestLiveTranscription !== undefined) {
+      setStreamingState(undefined);
+    }
+  }, [requestLiveTranscription]);
+
+  const saveStreamingTranscript = () => {
+    createManualTranscriptEntry(
+      'streamed transcript',
+      streamingTextDisplay || '',
+      '',
+      'streamed transcript',
+    );
+    setRequestLiveTranscription(undefined);
   };
 
   const applyAudioFilePath = () => {
     if (addAudioFilePath !== undefined) {
-      const manualItem: IInstance = {
-        id: `${Shared.formattedNow()}_manual`,
-        file: addAudioFilePath,
-        transcript: '',
-        AIStudyGuide: '',
-        AISummary: '',
-        note: 'Manually imported audio file',
-      };
-
-      setInstanceList([...instanceList, manualItem]);
-      setSelectedInstance(manualItem);
-      setPropertyTab('note');
+      createManualTranscriptEntry(
+        addAudioFilePath,
+        '',
+        'Manually imported audio file',
+        'Manually imported audio file',
+      );
     }
-
     setAddAudioFilePath(undefined);
   };
+
+  // compress on request
+  React.useEffect(() => {
+    const asyncCall = async () => {
+      if (
+        requestCompress &&
+        requestCompress.file &&
+        requestCompress.file.endsWith('mp3')
+      ) {
+        const newFileName = await window.electron.ipcRenderer.compressAudio(
+          requestCompress?.file,
+        );
+
+        const toUpdate = instanceList.find((x) => x.id === requestCompress.id);
+        if (toUpdate) {
+          toUpdate.file = newFileName;
+          setInstanceList([...instanceList]);
+          setUpdateFlag(updateFlag + 1);
+          setAlertCloudActivity(undefined);
+          if (selectedInstance?.id === toUpdate.id && propertyTab === 'file') {
+            setSelectedInstanceText(toUpdate.file);
+            setShowCompress(false);
+          }
+        }
+      }
+    };
+    if (requestCompress !== undefined) {
+      setAlertCloudActivity('Compressing.  Might take a while');
+      asyncCall();
+    }
+  }, [requestCompress]);
 
   return (
     <>
@@ -457,7 +705,7 @@ export default function Component() {
                         </Tooltip>
                         <Tooltip
                           arrow
-                          title="Create a new record from manually entering a transcript"
+                          title="Add an existing audio file of a lecture for transcription"
                         >
                           <Button
                             onClick={() =>
@@ -465,7 +713,23 @@ export default function Component() {
                             }
                             variant="text"
                           >
-                            <MusicNoteTwoTone />
+                            <ImportExportTwoTone />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip
+                          arrow
+                          title="Initialize a live transcript session"
+                        >
+                          <Button
+                            sx={{ marginRight: '10px' }}
+                            variant="text"
+                            color="info"
+                            onClick={() => {
+                              setStreamingMessage('');
+                              setRequestLiveTranscription('go');
+                            }}
+                          >
+                            <StreamTwoTone />
                           </Button>
                         </Tooltip>
                       </TableCell>
@@ -484,13 +748,7 @@ export default function Component() {
                           selected={selectedInstance?.id === row.id}
                           sx={{ cursor: 'pointer' }}
                         >
-                          <TableCell>
-                            {row.file
-                              .split('\\')
-                              [
-                                row.file.split('\\').length - 1
-                              ].replaceAll('_', ' ')}
-                          </TableCell>
+                          <TableCell>{row.name}</TableCell>
                         </StyledTableRow>
                       );
                     })}
@@ -512,14 +770,16 @@ export default function Component() {
           </Box>
         </Grid>
         {selectedInstance !== undefined && (
-          <Grid item xs={9}>
+          <Grid paddingX="15px" item xs={9}>
             <Box sx={{ width: '100%', typography: 'body1' }}>
               <TabContext value={propertyTab}>
                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                   <TabList
-                    onChange={handleTabChange}
+                    onChange={handlePropertyTabChange}
                     aria-label="lab API tabs example"
                   >
+                    <Tab label="Name" value="name" />
+                    <Tab label="File" value="file" />
                     <Tab label="Notes" value="note" />
                     <Tab label="Transcript" value="transcript" />
                     <Tab label="Summary" value="AISummary" />
@@ -530,25 +790,40 @@ export default function Component() {
                 <Grid padding={1} container>
                   <Grid item xs={1} />
                   <Grid padding={1} item xs={11}>
-                    {markdown && (
+                    {markdownDisplayFlag && !readonly && (
                       <Button
                         sx={{ marginRight: '10px' }}
                         variant="outlined"
                         color="info"
-                        onClick={() => setMarkdown(false)}
+                        onClick={() => setMarkdownDisplayFlag(false)}
                       >
                         View/Edit Text
                       </Button>
                     )}
-                    {!markdown && (
+                    {!markdownDisplayFlag && !readonly && (
                       <Button
                         sx={{ marginRight: '10px' }}
                         variant="outlined"
                         color="info"
-                        onClick={() => setMarkdown(true)}
+                        onClick={() => setMarkdownDisplayFlag(true)}
                       >
                         View Markdown
                       </Button>
+                    )}
+
+                    {showCompress && (
+                      <Tooltip
+                        arrow
+                        title="Compress audio to save file space before sending off for transcription"
+                      >
+                        <Button
+                          sx={{ marginLeft: '1px' }}
+                          onClick={() => setRequestCompress(selectedInstance)}
+                          variant="outlined"
+                        >
+                          <CompressTwoTone />
+                        </Button>
+                      </Tooltip>
                     )}
 
                     {dirty !== undefined && (
@@ -598,7 +873,7 @@ export default function Component() {
                 </Alert>
               )}
               {/* markdown, setMarkdown */}
-              {!markdown && (
+              {!markdownDisplayFlag && !readonly && (
                 <TextareaAutosize
                   sx={{ margin: 1, maxHeight: '60vh' }}
                   value={selectedInstanceText || ''}
@@ -610,13 +885,25 @@ export default function Component() {
                   }}
                 />
               )}
-              {markdown && selectedInstanceText && (
+              {readonly && (
                 <Box
                   sx={{
                     width: '95%',
                     marginLeft: 2,
                     maxWidth: '95%',
-                    maxHeight: '60vh',
+                    overflow: 'auto',
+                  }}
+                >
+                  <Markdown>{selectedInstanceText}</Markdown>
+                </Box>
+              )}
+
+              {!readonly && markdownDisplayFlag && selectedInstanceText && (
+                <Box
+                  sx={{
+                    width: '95%',
+                    marginLeft: 2,
+                    maxWidth: '95%',
                     overflow: 'auto',
                   }}
                 >
@@ -644,26 +931,62 @@ export default function Component() {
         </Alert>
       </Snackbar>
 
+      {/* Popup live transcription */}
+      <Modal
+        onClose={() => handleStreamingState('cancel')}
+        open={requestLiveTranscription !== undefined}
+      >
+        <ModalBox>
+          <h4>{streamingMessage}</h4>
+
+          <Button onClick={() => handleStreamingState('start')}>
+            <RecordVoiceOverTwoTone />
+            <Box sx={{ marginLeft: 2 }}>Start</Box>
+          </Button>
+
+          {streamingState === 'start' && (
+            <Button onClick={() => handleStreamingState('stop')}>
+              <StopCircleOutlined />
+              <Box sx={{ marginLeft: 2 }}>Stop</Box>
+            </Button>
+          )}
+
+          <Button onClick={() => handleStreamingState('cancel')}>
+            <CancelTwoTone />
+            <Box sx={{ marginLeft: 2 }}>Cancel</Box>
+          </Button>
+          {streamingState === 'start' && <LinearProgress color="secondary" />}
+          {streamingState === 'stop' &&
+            streamingTextDisplay !== undefined &&
+            streamingTextDisplay.length > 0 && (
+              <Button onClick={() => saveStreamingTranscript()}>
+                Save Transcript
+              </Button>
+            )}
+          <Box
+            sx={{
+              width: '95%',
+              marginLeft: 2,
+              maxWidth: '95%',
+              maxHeight: '50vh',
+              overflow: 'auto',
+            }}
+          >
+            <Markdown>{streamingTextDisplay || ''}</Markdown>
+            <div ref={messagesEndRef} />
+          </Box>
+        </ModalBox>
+      </Modal>
+
       {/* Popup recording interface */}
       <Modal
         onClose={() => setRequestAudioSession(undefined)}
         open={requestAudioSession !== undefined}
       >
-        <Box
-          sx={{
-            position: 'relative',
-            top: '10vh',
-            height: '80vh',
-            left: '10vw',
-            width: '80vw',
-            bgcolor: 'background.paper',
-            border: '2px solid #000',
-            boxShadow: (theme) => theme.shadows[5],
-            p: 4,
-          }}
-        >
+        <ModalBox>
           <h4>{recordingMessage}</h4>
           {recordingState === 'start' && <LinearProgress color="secondary" />}
+
           <BottomNavigation
             showLabels
             value={recordingState}
@@ -675,7 +998,7 @@ export default function Component() {
               icon={<RecordVoiceOverTwoTone />}
             />
             <BottomNavigationAction
-              disabled={recordingState === 'start'}
+              disabled={recordingState !== 'start'}
               label="Stop Recording"
               value="stop"
               icon={<StopCircleOutlined />}
@@ -686,23 +1009,12 @@ export default function Component() {
               icon={<CancelTwoTone />}
             />
           </BottomNavigation>
-        </Box>
+        </ModalBox>
       </Modal>
-      {/* modal for manually adding existing audio */}
+
+      {/* popup for manually adding existing audio */}
       <Modal open={addAudioFilePath !== undefined}>
-        <Box
-          sx={{
-            position: 'relative',
-            top: '10vh',
-            height: '80vh',
-            left: '10vw',
-            width: '80vw',
-            bgcolor: 'background.paper',
-            border: '2px solid #000',
-            boxShadow: (theme) => theme.shadows[5],
-            p: 4,
-          }}
-        >
+        <ModalBox>
           <FormControl sx={{ m: 1, minWidth: '90%' }}>
             <TextField
               sx={{ margin: '20px' }}
@@ -720,7 +1032,7 @@ export default function Component() {
             </Button>
             <Button onClick={() => applyAudioFilePath()}>Save</Button>
           </DialogActions>
-        </Box>
+        </ModalBox>
       </Modal>
     </>
   );

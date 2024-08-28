@@ -15,11 +15,13 @@ import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import { IpcMainInvokeEvent } from 'electron/main';
+import { exec } from 'child_process';
 import { resolveHtmlPath, ffMpegPath } from './util';
+
 import SimpleElectronStore from './backend/SimpleElectronStore';
 import ChatService, { IChatServiceResponse } from './backend/ChatService';
+import StreamingTranscriptService from './backend/StreamingTranscriptService';
 import Shared from '../shared';
-import { exec, execSync } from 'child_process';
 
 class AppUpdater {
   constructor() {
@@ -33,13 +35,41 @@ let mainWindow: BrowserWindow | null = null;
 
 const dataStore = new SimpleElectronStore();
 const chatSvc = new ChatService();
+const streamingSvc = new StreamingTranscriptService();
+streamingSvc.debug$.subscribe((msg) => dataStore.sessionLog([msg]));
+
+streamingSvc.partialTranscript$.subscribe((partialTranscript) =>
+  mainWindow?.webContents.send('partial-transcript', partialTranscript),
+);
+streamingSvc.finalTranscript$.subscribe((finalTranscript) =>
+  mainWindow?.webContents.send('final-transcript', finalTranscript),
+);
+streamingSvc.sessionOpen$.subscribe((sessionId) =>
+  mainWindow?.webContents.send('session-open', sessionId),
+);
+streamingSvc.sessionClosed$.subscribe((value) =>
+  mainWindow?.webContents.send('session-closed', value.reason),
+);
+streamingSvc.sessionError$.subscribe((err) =>
+  mainWindow?.webContents.send('session-error', err),
+);
+
+ipcMain.handle('stream-start', async (): Promise<string> => {
+  dataStore.sessionLog(['streamingSvc.start()']);
+  return streamingSvc.start();
+});
+ipcMain.handle('stream-stop', async (): Promise<string> => {
+  dataStore.sessionLog(['streamingSvc.stop()']);
+  return streamingSvc.stop();
+});
+
 ipcMain.handle(
   'transcribe',
   async (
     event: IpcMainInvokeEvent,
     file: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`OpenAI ChatService Transcribe`);
+    dataStore.sessionLog(['chatSvc.transcribe()']);
     return chatSvc.transcribe(file);
   },
 );
@@ -49,7 +79,7 @@ ipcMain.handle(
     event: IpcMainInvokeEvent,
     file: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`Groq ChatService Transcribe`);
+    dataStore.sessionLog(['chatSvc.groqTranscribe()']);
     return chatSvc.groqTranscribe(file);
   },
 );
@@ -59,7 +89,7 @@ ipcMain.handle(
     event: IpcMainInvokeEvent,
     transcript: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`ChatService transcript summary`);
+    dataStore.sessionLog(['chatSvc.transcriptSummary()']);
     return chatSvc.transcriptSummary(transcript);
   },
 );
@@ -70,7 +100,7 @@ ipcMain.handle(
     event: IpcMainInvokeEvent,
     transcript: string,
   ): Promise<IChatServiceResponse> => {
-    console.log(`ChatService study guide`);
+    dataStore.sessionLog(['chatSvc.transcriptStudyGuide()']);
     return chatSvc.transcriptStudyGuide(transcript);
   },
 );

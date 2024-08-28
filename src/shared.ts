@@ -17,6 +17,7 @@ export default class Shared {
     OPENAI_KEY: 'openAiKey',
     GROQ_KEY: 'groqKey',
     ANTHROPIC_KEY: 'anthropicKey',
+    ASSEMBLYAI_KEY: 'assemblyAiKey',
     OPENAI_MODEL_LIST: 'openAiModelList',
     ANTHROPIC_MODEL_LIST: 'anthropicModelList',
     OPENAI_MODEL: 'openAiModel',
